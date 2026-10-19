@@ -38,6 +38,9 @@ object RuleEngine {
                 OfficialSites.of(rule.target).any { site -> active.url?.let { urlMatches(it, site) } == true }
             TargetType.YT_SHORTS -> active.isShorts ||
                 (active.url != null && urlMatches(active.url, "youtube.com/shorts"))
+            // "instagram.com/reel" cobre /reel/<id> e /reels/.
+            TargetType.IG_REELS -> active.isReels ||
+                (active.url != null && urlMatches(active.url, "instagram.com/reel"))
             TargetType.WEBSITE -> false
         }
     }

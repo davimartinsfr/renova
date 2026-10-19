@@ -73,6 +73,16 @@ class RuleEngineTest {
         assertTrue(RuleEngine.matches(shorts, ActiveTarget("com.google.android.youtube", isShorts = true)))
         assertFalse(RuleEngine.matches(shorts, ActiveTarget("com.google.android.youtube", isShorts = false)))
         assertTrue(RuleEngine.matches(shorts, ActiveTarget("com.android.chrome", url = "youtube.com/shorts/x")))
+        val reels = Rule("r", TargetType.IG_REELS, "", "Instagram Reels")
+        assertTrue(RuleEngine.matches(reels, ActiveTarget("com.instagram.android", isReels = true)))
+        assertFalse(RuleEngine.matches(reels, ActiveTarget("com.instagram.android", isReels = false)))
+        assertTrue(RuleEngine.matches(reels, ActiveTarget("com.android.chrome", url = "www.instagram.com/reels/abc")))
+        assertTrue(RuleEngine.matches(reels, ActiveTarget("com.android.chrome", url = "instagram.com/reel/xyz")))
+        assertFalse(RuleEngine.matches(reels, ActiveTarget("com.android.chrome", url = "instagram.com/fulano")))
+        // Reels não pega o Shorts e vice-versa.
+        assertFalse(RuleEngine.matches(reels, ActiveTarget("com.google.android.youtube", isShorts = true)))
+        assertFalse(RuleEngine.matches(shorts, ActiveTarget("com.instagram.android", isReels = true)))
+        assertTrue(TargetType.IG_REELS.isSection && TargetType.YT_SHORTS.isSection && !TargetType.APP.isSection)
         assertTrue(RuleEngine.matches(reddit, ActiveTarget("com.reddit.frontpage")))
         // O app bloqueia também o próprio site no navegador.
         assertTrue(RuleEngine.matches(reddit, ActiveTarget("com.android.chrome", url = "www.reddit.com/r/all")))

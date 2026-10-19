@@ -88,7 +88,8 @@ class BlockedActivity : ComponentActivity() {
     }
 
     private fun leave() {
-        if (intent.getStringExtra(EXTRA_TYPE) != TargetType.YT_SHORTS.name) {
+        val type = TargetType.entries.firstOrNull { it.name == intent.getStringExtra(EXTRA_TYPE) }
+        if (type?.isSection != true) {
             startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
         finish()

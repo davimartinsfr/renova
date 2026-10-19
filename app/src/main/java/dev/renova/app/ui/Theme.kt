@@ -55,5 +55,6 @@ fun Schedule.describe(): String {
 fun Rule.typeLabel() = when (type) {
     TargetType.APP -> "App"
     TargetType.YT_SHORTS -> "YouTube Shorts"
+    TargetType.IG_REELS -> "Instagram Reels"
     TargetType.WEBSITE -> "Site"
 }

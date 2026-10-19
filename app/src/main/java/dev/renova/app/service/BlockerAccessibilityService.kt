@@ -159,11 +159,11 @@ class BlockerAccessibilityService : AccessibilityService() {
             .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
             .putExtra(BlockedActivity.EXTRA_REASON, reason)
             .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
-        if (rule.type == TargetType.YT_SHORTS) {
-            // No Shorts basta voltar (o resto do YouTube continua liberado); espera o YouTube sair do Shorts.
+        if (rule.type.isSection) {
+            // No Shorts/Reels basta voltar (o resto do app continua liberado); espera o app sair da seção.
             performGlobalAction(GLOBAL_ACTION_BACK)
             scope.launch {
-                delay(SHORTS_BACK_DELAY_MS)
+                delay(SECTION_BACK_DELAY_MS)
                 startActivity(blockedScreen)
             }
         } else {
@@ -193,7 +193,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     companion object {
         private const val EVAL_THROTTLE_MS = 300L
         private const val BLOCK_COOLDOWN_MS = 1500L
-        private const val SHORTS_BACK_DELAY_MS = 400L
+        private const val SECTION_BACK_DELAY_MS = 400L
         private const val PIP_EXPAND_COOLDOWN_MS = 3000L
         private const val FLUSH_EVERY_TICKS = 10
         private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60

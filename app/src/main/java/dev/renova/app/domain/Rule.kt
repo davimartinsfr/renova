@@ -4,7 +4,12 @@ import kotlinx.serialization.Serializable
 
 /** WEBSITE é legado: regras de site saíram (o app bloqueia o próprio site) e são descartadas ao carregar. */
 @Serializable
-enum class TargetType { APP, YT_SHORTS, WEBSITE }
+enum class TargetType {
+    APP, YT_SHORTS, IG_REELS, WEBSITE;
+
+    /** Bloqueia só uma área de vídeos curtos dentro do app; o resto do app continua liberado. */
+    val isSection: Boolean get() = this == YT_SHORTS || this == IG_REELS
+}
 
 /**
  * Janela de bloqueio. [days] usa 1 = segunda ... 7 = domingo (java.time.DayOfWeek).
@@ -22,7 +27,7 @@ data class Schedule(
 data class Rule(
     val id: String,
     val type: TargetType,
-    /** APP: nome do pacote. YT_SHORTS: vazio. */
+    /** APP: nome do pacote. YT_SHORTS e IG_REELS: vazio. */
     val target: String = "",
     val label: String,
     val dailyLimitMin: Int? = null,
@@ -34,6 +39,7 @@ data class Rule(
 data class ActiveTarget(
     val packageName: String,
     val isShorts: Boolean = false,
+    val isReels: Boolean = false,
     val url: String? = null,
 )
 

@@ -120,7 +120,11 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             id = original?.id ?: UUID.randomUUID().toString(),
             type = type,
             target = normalizedTarget,
-            label = if (type == TargetType.APP) label.ifBlank { target } else "YouTube Shorts",
+            label = when (type) {
+                TargetType.YT_SHORTS -> "YouTube Shorts"
+                TargetType.IG_REELS -> "Instagram Reels"
+                else -> label.ifBlank { target }
+            },
             dailyLimitMin = limit,
             schedules = schedules.toList(),
             enabled = enabled,
@@ -157,7 +161,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("O que bloquear", style = MaterialTheme.typography.titleMedium)
-            val types = listOf(TargetType.YT_SHORTS to "Shorts", TargetType.APP to "App")
+            val types = listOf(TargetType.YT_SHORTS to "Shorts", TargetType.IG_REELS to "Reels", TargetType.APP to "App")
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 types.forEachIndexed { i, (t, name) ->
                     SegmentedButton(
@@ -170,6 +174,11 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             when (type) {
                 TargetType.YT_SHORTS -> Text(
                     "Bloqueia só o Shorts no app do YouTube (e youtube.com/shorts no navegador). O resto do YouTube continua liberado.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                TargetType.IG_REELS -> Text(
+                    "Bloqueia só o Reels no app do Instagram (a aba Reels e Reels abertos em tela cheia) e instagram.com/reels no navegador. " +
+                        "Feed, stories e mensagens continuam liberados.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 else -> OutlinedButton(onClick = { pickingApp = true }, modifier = Modifier.fillMaxWidth()) {
