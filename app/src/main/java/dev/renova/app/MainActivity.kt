@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import dev.renova.app.ui.AppTheme
 import dev.renova.app.ui.HomeScreen
+import dev.renova.app.ui.HomeTab
 import dev.renova.app.ui.RuleEditorScreen
 
 class MainActivity : ComponentActivity() {
@@ -21,9 +22,11 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 // null = início; "" = nova regra; caso contrário, id da regra em edição.
                 var editing by rememberSaveable { mutableStateOf<String?>(null) }
+                // Fica aqui (e não na tela inicial) para a aba sobreviver à ida ao editor de regra.
+                var tab by rememberSaveable { mutableStateOf(HomeTab.RULES) }
                 val current = editing
                 if (current == null) {
-                    HomeScreen(onEditRule = { editing = it }, onNewRule = { editing = "" })
+                    HomeScreen(tab, onTabChange = { tab = it }, onEditRule = { editing = it }, onNewRule = { editing = "" })
                 } else {
                     BackHandler { editing = null }
                     RuleEditorScreen(ruleId = current.ifEmpty { null }, onDone = { editing = null })
