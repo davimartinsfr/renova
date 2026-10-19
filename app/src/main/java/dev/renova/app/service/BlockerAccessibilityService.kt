@@ -1,0 +1,164 @@
+package dev.renova.app.service
+
+import android.accessibilityservice.AccessibilityService
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.os.PowerManager
+import android.provider.Settings
+import android.view.accessibility.AccessibilityEvent
+import dev.renova.app.data.AppStore
+import dev.renova.app.data.DailyUsage
+import dev.renova.app.data.Updater
+import dev.renova.app.domain.ActiveTarget
+import dev.renova.app.domain.Rule
+import dev.renova.app.domain.RuleEngine
+import dev.renova.app.domain.TargetType
+import dev.renova.app.ui.BlockedActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.time.LocalDate
+import java.time.LocalDateTime
+
+/**
+ * Observa a tela, contabiliza o tempo gasto em cada alvo e expulsa o usuário
+ * quando uma regra está em horário de bloqueio ou estourou o limite diário.
+ */
+class BlockerAccessibilityService : AccessibilityService() {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private lateinit var store: AppStore
+    private lateinit var power: PowerManager
+
+    private var rules: List<Rule> = emptyList()
+    private var unlockUntil = 0L
+    private var usageDate = LocalDate.now().toString()
+    private val usage = mutableMapOf<String, Long>()
+    private var usageLoaded = false
+    private var dirtyTicks = 0
+    private var updateTicks = UPDATE_CHECK_EVERY_TICKS - 30
+
+    private var active: ActiveTarget? = null
+    private var lastEvalAt = 0L
+    private var lastBlockAt = 0L
+
+    override fun onServiceConnected() {
+        store = AppStore.get(this)
+        power = getSystemService(PowerManager::class.java)
+        scope.launch { store.rules.collect { rules = it } }
+        scope.launch { store.unlockUntil.collect { unlockUntil = it } }
+        scope.launch {
+            usage.putAll(store.usage.first().today())
+            usageLoaded = true
+            tickLoop()
+        }
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        val now = System.currentTimeMillis()
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && now - lastEvalAt < EVAL_THROTTLE_MS) return
+        lastEvalAt = now
+        evaluate()
+    }
+
+    override fun onInterrupt() = Unit
+
+    override fun onDestroy() {
+        if (usageLoaded) runBlocking { flushUsage() }
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    private fun evaluate() {
+        val root = rootInActiveWindow ?: return
+        val target = TargetDetector.detect(root) ?: return
+        active = if (target.packageName == packageName || target.packageName in IGNORED_PACKAGES) null else target
+        checkBlock()
+    }
+
+    private suspend fun tickLoop() {
+        while (scope.isActive) {
+            delay(1000)
+            rollOverDay()
+            if (++updateTicks >= UPDATE_CHECK_EVERY_TICKS) {
+                updateTicks = 0
+                scope.launch { Updater.checkIfDue(this@BlockerAccessibilityService, UPDATE_INTERVAL_MS) }
+            }
+            if (!power.isInteractive) continue
+            evaluate()
+            val target = active ?: continue
+            val matched = rules.filter { RuleEngine.matches(it, target) }
+            if (matched.isEmpty()) continue
+            matched.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
+            if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
+            checkBlock()
+        }
+    }
+
+    private suspend fun rollOverDay() {
+        val today = LocalDate.now().toString()
+        if (today != usageDate) {
+            usageDate = today
+            usage.clear()
+            flushUsage()
+        }
+    }
+
+    private suspend fun flushUsage() {
+        dirtyTicks = 0
+        store.saveUsage(DailyUsage(usageDate, usage.toMap()))
+    }
+
+    private fun checkBlock() {
+        val target = active ?: return
+        val unlocked = unlockUntil > System.currentTimeMillis()
+        val now = LocalDateTime.now()
+        for (rule in rules) {
+            if (!RuleEngine.matches(rule, target)) continue
+            val reason = RuleEngine.blockReason(rule, usage[rule.id] ?: 0L, now, unlocked) ?: continue
+            block(rule, reason.name)
+            return
+        }
+    }
+
+    private fun block(rule: Rule, reason: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
+        lastBlockAt = now
+        active = null
+        // No Shorts basta voltar (o resto do YouTube continua liberado); nos demais, vai para a tela inicial.
+        performGlobalAction(if (rule.type == TargetType.YT_SHORTS) GLOBAL_ACTION_BACK else GLOBAL_ACTION_HOME)
+        startActivity(
+            Intent(this, BlockedActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
+                .putExtra(BlockedActivity.EXTRA_REASON, reason)
+                .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name),
+        )
+        scope.launch { flushUsage() }
+    }
+
+    companion object {
+        private const val EVAL_THROTTLE_MS = 300L
+        private const val BLOCK_COOLDOWN_MS = 1500L
+        private const val FLUSH_EVERY_TICKS = 10
+        private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60
+        private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
+        private val IGNORED_PACKAGES = setOf("com.android.systemui")
+
+        fun isEnabled(context: Context): Boolean {
+            val me = ComponentName(context, BlockerAccessibilityService::class.java)
+            val enabled = Settings.Secure.getString(
+                context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+            ) ?: return false
+            return enabled.split(':').any { ComponentName.unflattenFromString(it) == me }
+        }
+    }
+}

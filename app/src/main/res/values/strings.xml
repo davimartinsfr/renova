@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Renova</string>
+    <string name="accessibility_description">Detecta quando você abre apps, o YouTube Shorts ou sites que você decidiu limitar, conta o tempo de uso e bloqueia conforme suas regras. Nada sai do aparelho.</string>
+</resources>
