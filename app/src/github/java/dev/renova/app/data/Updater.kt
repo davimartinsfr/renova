@@ -21,9 +21,6 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-@Serializable
-data class AvailableUpdate(val version: String, val apkUrl: String, val notes: String = "")
-
 /** Atualizações publicadas como releases do GitHub (tag "v<versionName>", com o APK anexado). */
 object Updater {
     private const val LATEST_RELEASE = "https://api.github.com/repos/davimartinsfr/renova/releases/latest"

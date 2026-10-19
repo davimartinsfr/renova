@@ -108,13 +108,3 @@ class RuleEngineTest {
         assertFalse(RuleEngine.isLoosening(base.copy(enabled = false), null))
     }
 }
-
-class UpdaterTest {
-    @Test fun versionComparison() {
-        assertTrue(dev.renova.app.data.Updater.isNewer("1.1", "1.0"))
-        assertTrue(dev.renova.app.data.Updater.isNewer("1.10", "1.9"))
-        assertTrue(dev.renova.app.data.Updater.isNewer("2", "1.9.9"))
-        assertFalse(dev.renova.app.data.Updater.isNewer("1.0", "1.0"))
-        assertFalse(dev.renova.app.data.Updater.isNewer("1.0", "1.0.1"))
-    }
-}

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +38,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -85,6 +87,7 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
+    var showDisclosure by remember { mutableStateOf(false) }
 
     // Estados do sistema que mudam fora do app: reavaliados ao voltar para a tela.
     var resumeTick by remember { mutableIntStateOf(0) }
@@ -170,7 +173,7 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
                         "Configurações › Apps › Renova › ⋮ › Permitir configurações restritas.",
                     action = "Abrir acessibilidade",
                     urgent = true,
-                ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                ) { showDisclosure = true }
             }
             if (!batteryOk) item {
                 SetupCard(
@@ -219,6 +222,34 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
             }
         }
     }
+
+    if (showDisclosure) AccessibilityDisclosure(
+        onAccept = {
+            showDisclosure = false
+            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        },
+        onDismiss = { showDisclosure = false },
+    )
+}
+
+/** Divulgação exigida pela Play Store antes de o usuário ativar o serviço de acessibilidade. */
+@Composable
+private fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Uso da acessibilidade") },
+        text = {
+            Text(
+                "O Renova usa o serviço de acessibilidade do Android para saber qual app está aberto e ler o " +
+                    "conteúdo da tela só o suficiente para reconhecer o YouTube Shorts, o Reels do Instagram e o " +
+                    "endereço dos sites abertos no navegador.\n\n" +
+                    "Com isso ele conta o tempo de uso e bloqueia o que você escolheu limitar nas suas regras. " +
+                    "Nada do que aparece na tela é guardado, enviado ou compartilhado: tudo fica no aparelho.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onAccept) { Text("Concordo, ativar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Agora não") } },
+    )
 }
 
 /** Abas da tela inicial. */
@@ -228,6 +259,11 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
 }
 
 private fun requestIgnoreBattery(context: Context) {
+    // A Play Store não aceita a permissão de pedir a isenção direto: lá abrimos a lista de apps.
+    if (BuildConfig.PLAY_STORE) {
+        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        return
+    }
     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))
     runCatching { context.startActivity(intent) }
         .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }

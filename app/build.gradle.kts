@@ -14,14 +14,27 @@ val keystoreProps = Properties().apply {
 
 android {
     namespace = "dev.renova.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "dev.renova.app"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 7
-        versionName = "1.5"
+        targetSdk = 36
+        versionCode = 8
+        versionName = "1.5.1"
+    }
+
+    // github: APK das releases, com atualizador próprio. play: AAB da Play Store, quem atualiza é a loja.
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") {
+            dimension = "store"
+            buildConfigField("boolean", "PLAY_STORE", "false")
+        }
+        create("play") {
+            dimension = "store"
+            buildConfigField("boolean", "PLAY_STORE", "true")
+        }
     }
 
     signingConfigs {
