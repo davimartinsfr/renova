@@ -3,6 +3,7 @@ package dev.renova.app
 import dev.renova.app.data.Bible
 import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Reading
+import dev.renova.app.domain.UnlockOption
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -36,23 +37,41 @@ class ReadingTest {
     }
 }
 
-class ReadingGoalTest {
-    @Test fun goalNeverBelowOneNorAboveMax() {
-        assertEquals(1, Reading.clampGoal(0))
-        assertEquals(1, Reading.clampGoal(-5))
-        assertEquals(Reading.MAX_CHAPTERS_PER_UNLOCK, Reading.clampGoal(99))
-        assertEquals(4, Reading.clampGoal(4))
+class UnlockOptionTest {
+    @Test fun optionsMatchSpec() {
+        assertEquals(1L to 0, UnlockOption.VERSE.minutes to UnlockOption.VERSE.chapters)
+        assertEquals(15L to 1, UnlockOption.CHAPTER.minutes to UnlockOption.CHAPTER.chapters)
+        assertEquals(60L to 3, UnlockOption.CHAPTERS.minutes to UnlockOption.CHAPTERS.chapters)
+        assertEquals("1 minuto", UnlockOption.VERSE.duration)
+        assertEquals("1 hora", UnlockOption.CHAPTERS.duration)
+        assertEquals("1 versículo aleatório", UnlockOption.VERSE.reading)
+        assertEquals("3 capítulos", UnlockOption.CHAPTERS.reading)
     }
 
-    @Test fun loweringGoalOnlyWhileUnlocked() {
-        assertTrue(Reading.canSetGoal(3, 5, unlocked = false))
-        assertTrue(Reading.canSetGoal(3, 3, unlocked = false))
-        assertFalse(Reading.canSetGoal(3, 1, unlocked = false))
-        assertTrue(Reading.canSetGoal(3, 1, unlocked = true))
+    @Test fun onlyChaptersAllowRuleEdits() {
+        assertFalse(UnlockOption.VERSE.allowsRuleEdits)
+        assertTrue(UnlockOption.CHAPTER.allowsRuleEdits)
     }
 
-    @Test fun chapterLabel() {
-        assertEquals("1 capítulo", Reading.chapters(1))
-        assertEquals("3 capítulos", Reading.chapters(3))
+    @Test fun unlockNeverShortensLongerOne() {
+        val now = 1_000_000L
+        assertEquals(now + 60_000, Reading.unlockUntil(UnlockOption.VERSE, 0L, now))
+        val hourLeft = now + 3_600_000
+        assertEquals(hourLeft, Reading.unlockUntil(UnlockOption.VERSE, hourLeft, now))
+    }
+}
+
+class RandomVerseTest {
+    private val bible by lazy { File("src/main/assets/bible/acf.json").inputStream().use { Bible.parse(it) } }
+
+    @Test fun drawsValidVersesAcrossTheBible() {
+        val random = kotlin.random.Random(42)
+        val books = mutableSetOf<Int>()
+        repeat(2000) {
+            val (b, c, v) = bible.randomVerse(random)
+            assertTrue(bible.verses(b, c)[v].isNotBlank())
+            books += b
+        }
+        assertTrue(books.size > 50)
     }
 }

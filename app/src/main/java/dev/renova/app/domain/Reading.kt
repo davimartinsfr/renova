@@ -5,25 +5,41 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class BiblePosition(val book: Int = 0, val chapter: Int = 0, val rounds: Int = 0)
 
+/** Opções de liberação: quanto tempo de uso cada leitura dá. [chapters] = 0 é um versículo aleatório. */
+enum class UnlockOption(val minutes: Long, val chapters: Int) {
+    VERSE(1, 0),
+    CHAPTER(15, 1),
+    CHAPTERS(60, 3);
+
+    val duration: String
+        get() = when {
+            minutes == 1L -> "1 minuto"
+            minutes < 60 -> "$minutes minutos"
+            minutes == 60L -> "1 hora"
+            else -> "${minutes / 60} horas"
+        }
+
+    val reading: String get() = if (chapters == 0) "1 versículo aleatório" else Reading.chapters(chapters)
+
+    /** Afrouxar regras exige ler capítulos: um versículo seria um atalho barato demais. */
+    val allowsRuleEdits: Boolean get() = chapters > 0
+}
+
 object Reading {
-    const val DEFAULT_CHAPTERS_PER_UNLOCK = 3
-    const val MIN_CHAPTERS_PER_UNLOCK = 1
-    const val MAX_CHAPTERS_PER_UNLOCK = 10
-    const val UNLOCK_MINUTES = 15L
     private const val WORDS_PER_MINUTE = 200
     private const val MIN_SECONDS = 30
-
-    fun clampGoal(chapters: Int): Int = chapters.coerceIn(MIN_CHAPTERS_PER_UNLOCK, MAX_CHAPTERS_PER_UNLOCK)
-
-    /** Diminuir a meta afrouxa o bloqueio, então só vale durante um desbloqueio (como afrouxar regras). */
-    fun canSetGoal(current: Int, new: Int, unlocked: Boolean): Boolean = new >= current || unlocked
+    const val MIN_SECONDS_VERSE = 10
 
     fun chapters(n: Int): String = if (n == 1) "1 capítulo" else "$n capítulos"
 
-    fun minSeconds(verses: List<String>): Int {
+    fun minSeconds(verses: List<String>, floor: Int = MIN_SECONDS): Int {
         val words = verses.sumOf { v -> v.split(' ').count { it.isNotBlank() } }
-        return maxOf(MIN_SECONDS, words * 60 / WORDS_PER_MINUTE)
+        return maxOf(floor, words * 60 / WORDS_PER_MINUTE)
     }
+
+    /** Fim do desbloqueio ao concluir [option]: nunca encurta um desbloqueio maior já em andamento. */
+    fun unlockUntil(option: UnlockOption, currentUntil: Long, now: Long): Long =
+        maxOf(currentUntil, now + option.minutes * 60_000)
 
     /** Avança um capítulo; depois de Apocalipse 22 volta para Gênesis 1. */
     fun next(pos: BiblePosition, chaptersPerBook: List<Int>): BiblePosition = when {

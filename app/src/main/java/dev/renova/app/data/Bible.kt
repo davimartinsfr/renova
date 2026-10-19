@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.InputStream
+import kotlin.random.Random
 
 @Serializable
 data class BibleBook(val name: String, val abbrev: String, val chapters: List<List<String>>)
@@ -19,6 +20,20 @@ class Bible(val books: List<BibleBook>) {
     fun verses(book: Int, chapter: Int): List<String> = books[book].chapters[chapter]
 
     fun title(book: Int, chapter: Int) = title(BiblePosition(book, chapter))
+
+    /** Versículo sorteado com chance igual para todos: (livro, capítulo, versículo), base 0. */
+    fun randomVerse(random: Random = Random.Default): Triple<Int, Int, Int> {
+        var n = random.nextInt(verseCount)
+        books.forEachIndexed { b, book ->
+            book.chapters.forEachIndexed { c, verses ->
+                if (n < verses.size) return Triple(b, c, n)
+                n -= verses.size
+            }
+        }
+        error("unreachable")
+    }
+
+    private val verseCount = books.sumOf { book -> book.chapters.sumOf { it.size } }
 
     companion object {
         val BOOK_NAMES = listOf(

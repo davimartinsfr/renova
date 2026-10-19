@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Reading
 import dev.renova.app.domain.Rule
+import dev.renova.app.domain.UnlockOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -37,7 +38,7 @@ class AppStore private constructor(context: Context) {
         val BIBLE_CHAPTER = intPreferencesKey("bible_chapter")
         val BIBLE_ROUNDS = intPreferencesKey("bible_rounds")
         val CHAPTERS_READ = intPreferencesKey("chapters_read")
-        val CHAPTERS_PER_UNLOCK = intPreferencesKey("chapters_per_unlock")
+        val EDIT_UNLOCK_UNTIL = longPreferencesKey("edit_unlock_until")
         val UPDATE = stringPreferencesKey("update")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
@@ -60,18 +61,8 @@ class AppStore private constructor(context: Context) {
 
     val chaptersRead: Flow<Int> = store.data.map { it[Keys.CHAPTERS_READ] ?: 0 }
 
-    /** Capítulos exigidos por desbloqueio (meta escolhida pela pessoa, nunca abaixo de 1). */
-    val chaptersPerUnlock: Flow<Int> = store.data.map {
-        Reading.clampGoal(it[Keys.CHAPTERS_PER_UNLOCK] ?: Reading.DEFAULT_CHAPTERS_PER_UNLOCK)
-    }
-
-    /** Muda a meta; devolve false se for uma diminuição fora do desbloqueio. */
-    suspend fun setChaptersPerUnlock(chapters: Int): Boolean {
-        val new = Reading.clampGoal(chapters)
-        if (!Reading.canSetGoal(chaptersPerUnlock.first(), new, isUnlocked())) return false
-        store.edit { it[Keys.CHAPTERS_PER_UNLOCK] = new }
-        return true
-    }
+    /** Até quando dá para afrouxar regras (só liberações por capítulos contam). */
+    val editUnlockUntil: Flow<Long> = store.data.map { it[Keys.EDIT_UNLOCK_UNTIL] ?: 0L }
 
     val availableUpdate: Flow<AvailableUpdate?> = store.data.map { p ->
         p[Keys.UPDATE]?.let { json.decodeFromString<AvailableUpdate>(it) }
@@ -122,9 +113,18 @@ class AppStore private constructor(context: Context) {
 
     suspend fun isUnlocked(): Boolean = unlockUntil.first() > System.currentTimeMillis()
 
-    suspend fun grantUnlock(): Long {
-        val until = System.currentTimeMillis() + Reading.UNLOCK_MINUTES * 60_000
-        store.edit { it[Keys.UNLOCK_UNTIL] = until }
+    suspend fun isUnlockedForEdits(): Boolean = editUnlockUntil.first() > System.currentTimeMillis()
+
+    suspend fun grantUnlock(option: UnlockOption): Long {
+        var until = 0L
+        store.edit { p ->
+            val now = System.currentTimeMillis()
+            until = Reading.unlockUntil(option, p[Keys.UNLOCK_UNTIL] ?: 0L, now)
+            p[Keys.UNLOCK_UNTIL] = until
+            if (option.allowsRuleEdits) {
+                p[Keys.EDIT_UNLOCK_UNTIL] = Reading.unlockUntil(option, p[Keys.EDIT_UNLOCK_UNTIL] ?: 0L, now)
+            }
+        }
         return until
     }
 

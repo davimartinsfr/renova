@@ -3,9 +3,18 @@
 > "E não sede conformados com este mundo, mas sede transformados pela renovação do vosso entendimento" (Romanos 12:2)
 
 Bloqueador de apps, YouTube Shorts e sites para Android. Cada regra tem **limite diário** e/ou
-**horários de bloqueio**. Para desbloquear (15 min) — ou para afrouxar/apagar uma regra — é preciso
-ler **capítulos da Bíblia** (meta ajustável de 1 a 10, padrão 3; diminuir só durante um desbloqueio) (Almeida Corrigida Fiel, offline), continuando de onde parou, a partir de Gênesis 1.
-Cada capítulo só conta depois de rolar até o fim e permanecer o tempo mínimo (~200 palavras/min, mínimo 30 s).
+**horários de bloqueio**. Para liberar os apps bloqueados, escolha quanto tempo e leia na Bíblia
+(Almeida Corrigida Fiel, offline):
+
+| Liberação | Leitura |
+|---|---|
+| 1 minuto | 1 versículo aleatório |
+| 15 minutos | 1 capítulo |
+| 1 hora | 3 capítulos |
+
+Os capítulos seguem um plano contínuo a partir de Gênesis 1. Cada um só conta depois de rolar até o fim e
+permanecer o tempo mínimo (~200 palavras/min, mínimo 30 s; 10 s para o versículo). Afrouxar ou apagar uma
+regra exige uma liberação por capítulos — o versículo avulso não vale para isso.
 
 ## Instalar no celular
 1. No celular, baixe o `.apk` da [última release](https://github.com/davimartinsfr/renova/releases/latest) e abra (permita "instalar apps desconhecidos"). Depois disso o próprio app avisa quando houver versão nova.

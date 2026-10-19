@@ -24,6 +24,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -32,7 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import dev.renova.app.data.AppStore
 import dev.renova.app.data.Bible
 import dev.renova.app.domain.BlockReason
-import dev.renova.app.domain.Reading
+import dev.renova.app.domain.UnlockOption
 import dev.renova.app.domain.TargetType
 import kotlinx.coroutines.launch
 
@@ -48,15 +51,13 @@ class BlockedActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 val position by store.biblePosition.collectAsState(initial = null)
-                val nextReading = position?.let { "Próxima leitura: ${Bible.title(it)}" }
-                val goal by store.chaptersPerUnlock.collectAsState(initial = Reading.DEFAULT_CHAPTERS_PER_UNLOCK)
+                val nextReading = position?.let { "Próximo capítulo: ${Bible.title(it)}" }
                 BlockedScreen(
                     label = intent.getStringExtra(EXTRA_LABEL).orEmpty(),
                     reason = intent.getStringExtra(EXTRA_REASON),
                     nextReading = nextReading,
-                    goal = goal,
                     onLeave = ::leave,
-                    onRead = { startActivity(Intent(this, ReadingActivity::class.java)) },
+                    onRead = ::startReading,
                 )
             }
         }
@@ -94,9 +95,15 @@ private fun BlockedScreen(
     reason: String?,
     nextReading: String?,
     onLeave: () -> Unit,
-    goal: Int,
-    onRead: () -> Unit,
+    onRead: (UnlockOption) -> Unit,
 ) {
+    var choosing by remember { mutableStateOf(false) }
+    if (choosing) {
+        UnlockOptionsDialog(onDismiss = { choosing = false }) { option ->
+            choosing = false
+            onRead(option)
+        }
+    }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(
             Modifier.fillMaxSize().padding(32.dp),
@@ -117,9 +124,7 @@ private fun BlockedScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(40.dp))
-            Button(onClick = onRead, modifier = Modifier.fillMaxWidth()) {
-                Text("Ler ${Reading.chapters(goal)} e liberar por ${Reading.UNLOCK_MINUTES} min")
-            }
+            Button(onClick = { choosing = true }, modifier = Modifier.fillMaxWidth()) { Text(UNLOCK_BUTTON_LABEL) }
             if (nextReading != null) {
                 Text(
                     nextReading,
