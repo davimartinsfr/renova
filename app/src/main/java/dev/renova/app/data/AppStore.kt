@@ -37,6 +37,7 @@ class AppStore private constructor(context: Context) {
         val BIBLE_CHAPTER = intPreferencesKey("bible_chapter")
         val BIBLE_ROUNDS = intPreferencesKey("bible_rounds")
         val CHAPTERS_READ = intPreferencesKey("chapters_read")
+        val CHAPTERS_PER_UNLOCK = intPreferencesKey("chapters_per_unlock")
         val UPDATE = stringPreferencesKey("update")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
@@ -58,6 +59,19 @@ class AppStore private constructor(context: Context) {
     val biblePosition: Flow<BiblePosition> = store.data.map { it.position() }
 
     val chaptersRead: Flow<Int> = store.data.map { it[Keys.CHAPTERS_READ] ?: 0 }
+
+    /** Capítulos exigidos por desbloqueio (meta escolhida pela pessoa, nunca abaixo de 1). */
+    val chaptersPerUnlock: Flow<Int> = store.data.map {
+        Reading.clampGoal(it[Keys.CHAPTERS_PER_UNLOCK] ?: Reading.DEFAULT_CHAPTERS_PER_UNLOCK)
+    }
+
+    /** Muda a meta; devolve false se for uma diminuição fora do desbloqueio. */
+    suspend fun setChaptersPerUnlock(chapters: Int): Boolean {
+        val new = Reading.clampGoal(chapters)
+        if (!Reading.canSetGoal(chaptersPerUnlock.first(), new, isUnlocked())) return false
+        store.edit { it[Keys.CHAPTERS_PER_UNLOCK] = new }
+        return true
+    }
 
     val availableUpdate: Flow<AvailableUpdate?> = store.data.map { p ->
         p[Keys.UPDATE]?.let { json.decodeFromString<AvailableUpdate>(it) }

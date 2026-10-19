@@ -49,10 +49,12 @@ class BlockedActivity : ComponentActivity() {
             AppTheme {
                 val position by store.biblePosition.collectAsState(initial = null)
                 val nextReading = position?.let { "Próxima leitura: ${Bible.title(it)}" }
+                val goal by store.chaptersPerUnlock.collectAsState(initial = Reading.DEFAULT_CHAPTERS_PER_UNLOCK)
                 BlockedScreen(
                     label = intent.getStringExtra(EXTRA_LABEL).orEmpty(),
                     reason = intent.getStringExtra(EXTRA_REASON),
                     nextReading = nextReading,
+                    goal = goal,
                     onLeave = ::leave,
                     onRead = { startActivity(Intent(this, ReadingActivity::class.java)) },
                 )
@@ -92,6 +94,7 @@ private fun BlockedScreen(
     reason: String?,
     nextReading: String?,
     onLeave: () -> Unit,
+    goal: Int,
     onRead: () -> Unit,
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -115,7 +118,7 @@ private fun BlockedScreen(
             )
             Spacer(Modifier.height(40.dp))
             Button(onClick = onRead, modifier = Modifier.fillMaxWidth()) {
-                Text("Ler ${Reading.CHAPTERS_PER_UNLOCK} capítulos e liberar por ${Reading.UNLOCK_MINUTES} min")
+                Text("Ler ${Reading.chapters(goal)} e liberar por ${Reading.UNLOCK_MINUTES} min")
             }
             if (nextReading != null) {
                 Text(

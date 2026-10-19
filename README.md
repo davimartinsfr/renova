@@ -4,7 +4,7 @@
 
 Bloqueador de apps, YouTube Shorts e sites para Android. Cada regra tem **limite diário** e/ou
 **horários de bloqueio**. Para desbloquear (15 min) — ou para afrouxar/apagar uma regra — é preciso
-ler **3 capítulos da Bíblia** (Almeida Corrigida Fiel, offline), continuando de onde parou, a partir de Gênesis 1.
+ler **capítulos da Bíblia** (meta ajustável de 1 a 10, padrão 3; diminuir só durante um desbloqueio) (Almeida Corrigida Fiel, offline), continuando de onde parou, a partir de Gênesis 1.
 Cada capítulo só conta depois de rolar até o fim e permanecer o tempo mínimo (~200 palavras/min, mínimo 30 s).
 
 ## Instalar no celular

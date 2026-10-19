@@ -29,6 +29,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -45,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -74,6 +77,7 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
     val unlockUntil by store.unlockUntil.collectAsState(initial = 0L)
     val position by store.biblePosition.collectAsState(initial = BiblePosition())
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
+    val goal by store.chaptersPerUnlock.collectAsState(initial = Reading.DEFAULT_CHAPTERS_PER_UNLOCK)
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -164,7 +168,10 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
                 ) { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
             }
             item {
-                ReadingCard(position, chaptersRead, unlocked, unlockUntil - now) {
+                ReadingCard(
+                    position, chaptersRead, goal, unlocked, unlockUntil - now,
+                    onGoalChange = { new -> scope.launch { store.setChaptersPerUnlock(new) } },
+                ) {
                     context.startActivity(Intent(context, ReadingActivity::class.java))
                 }
             }
@@ -204,7 +211,15 @@ private fun SetupCard(title: String, text: String, action: String, urgent: Boole
 }
 
 @Composable
-private fun ReadingCard(position: BiblePosition, chaptersRead: Int, unlocked: Boolean, remainingMs: Long, onRead: () -> Unit) {
+private fun ReadingCard(
+    position: BiblePosition,
+    chaptersRead: Int,
+    goal: Int,
+    unlocked: Boolean,
+    remainingMs: Long,
+    onGoalChange: (Int) -> Unit,
+    onRead: () -> Unit,
+) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (unlocked) {
@@ -216,9 +231,23 @@ private fun ReadingCard(position: BiblePosition, chaptersRead: Int, unlocked: Bo
             Text("Próxima leitura: ${Bible.title(position)}", style = MaterialTheme.typography.bodyLarge)
             val roundsText = if (position.rounds > 0) " · ${position.rounds}ª volta completa" else ""
             Text("$chaptersRead capítulos lidos$roundsText", style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Meta por desbloqueio: ${Reading.chapters(goal)}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = { onGoalChange(goal - 1) },
+                    enabled = goal > Reading.MIN_CHAPTERS_PER_UNLOCK && unlocked,
+                ) { Text("−", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { contentDescription = "Diminuir meta" }) }
+                IconButton(
+                    onClick = { onGoalChange(goal + 1) },
+                    enabled = goal < Reading.MAX_CHAPTERS_PER_UNLOCK,
+                ) { Text("+", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { contentDescription = "Aumentar meta" }) }
+            }
+            if (!unlocked && goal > Reading.MIN_CHAPTERS_PER_UNLOCK) {
+                Text("Diminuir a meta só é possível durante um desbloqueio.", style = MaterialTheme.typography.bodySmall)
+            }
             if (!unlocked) {
                 OutlinedButton(onClick = onRead) {
-                    Text("Ler ${Reading.CHAPTERS_PER_UNLOCK} capítulos (libera ${Reading.UNLOCK_MINUTES} min)")
+                    Text("Ler ${Reading.chapters(goal)} (libera ${Reading.UNLOCK_MINUTES} min)")
                 }
             }
         }

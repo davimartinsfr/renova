@@ -61,10 +61,11 @@ import dev.renova.app.data.Bible
 import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Reading
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Leitura de 3 capítulos seguidos. Cada capítulo só conta depois de rolar até o fim
+ * Leitura dos capítulos da meta, seguidos. Cada capítulo só conta depois de rolar até o fim
  * e permanecer nele pelo tempo mínimo (o cronômetro pausa fora do app).
  */
 class ReadingActivity : ComponentActivity() {
@@ -84,11 +85,14 @@ private fun ReadingScreen(onClose: () -> Unit) {
     val position by store.biblePosition.collectAsState(initial = null)
     var done by rememberSaveable { mutableIntStateOf(0) }
     var unlockedUntil by rememberSaveable { mutableStateOf(0L) }
+    // A meta é fixada ao abrir a leitura: mudá-la no meio não altera a sessão em andamento.
+    var goal by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { if (goal == 0) goal = store.chaptersPerUnlock.first() }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (done < Reading.CHAPTERS_PER_UNLOCK) "Capítulo ${done + 1} de ${Reading.CHAPTERS_PER_UNLOCK}" else "Leitura concluída") },
+                title = { Text(if (goal == 0 || done < goal) "Capítulo ${done + 1} de $goal" else "Leitura concluída") },
                 navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Fechar") } },
             )
         },
@@ -98,13 +102,13 @@ private fun ReadingScreen(onClose: () -> Unit) {
             val pos = position
             when {
                 unlockedUntil > 0 -> Finished(unlockedUntil, onClose)
-                b == null || pos == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                b == null || pos == null || goal == 0 -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 // key(pos): cada capítulo ganha estado novo (rolagem, cronômetro).
                 else -> key(pos) {
                     ChapterReader(b, pos) {
                         store.completeChapter(b.chaptersPerBook)
                         done++
-                        if (done >= Reading.CHAPTERS_PER_UNLOCK) {
+                        if (done >= goal) {
                             unlockedUntil = store.grantUnlock()
                             Notifications.showUnlock(context, unlockedUntil)
                         }

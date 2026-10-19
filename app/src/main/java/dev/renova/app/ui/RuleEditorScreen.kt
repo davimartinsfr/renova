@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -92,6 +93,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var needReading by remember { mutableStateOf(false) }
     var pickingApp by remember { mutableStateOf(false) }
+    val goal by store.chaptersPerUnlock.collectAsState(initial = Reading.DEFAULT_CHAPTERS_PER_UNLOCK)
 
     LaunchedEffect(ruleId) {
         if (ruleId == null) return@LaunchedEffect
@@ -262,7 +264,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             title = { Text("Isso afrouxa o bloqueio") },
             text = {
                 Text(
-                    "Para apagar, desativar ou afrouxar uma regra, leia ${Reading.CHAPTERS_PER_UNLOCK} capítulos da Bíblia. " +
+                    "Para apagar, desativar ou afrouxar uma regra, leia ${Reading.chapters(goal)} da Bíblia. " +
                         "Depois você terá ${Reading.UNLOCK_MINUTES} minutos para fazer a alteração.",
                 )
             },

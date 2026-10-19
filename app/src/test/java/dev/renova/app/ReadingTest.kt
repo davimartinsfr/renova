@@ -4,6 +4,8 @@ import dev.renova.app.data.Bible
 import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Reading
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
@@ -31,5 +33,26 @@ class ReadingTest {
         pos = BiblePosition()
         repeat(1189) { pos = Reading.next(pos, bible.chaptersPerBook) }
         assertEquals(BiblePosition(0, 0, rounds = 1), pos)
+    }
+}
+
+class ReadingGoalTest {
+    @Test fun goalNeverBelowOneNorAboveMax() {
+        assertEquals(1, Reading.clampGoal(0))
+        assertEquals(1, Reading.clampGoal(-5))
+        assertEquals(Reading.MAX_CHAPTERS_PER_UNLOCK, Reading.clampGoal(99))
+        assertEquals(4, Reading.clampGoal(4))
+    }
+
+    @Test fun loweringGoalOnlyWhileUnlocked() {
+        assertTrue(Reading.canSetGoal(3, 5, unlocked = false))
+        assertTrue(Reading.canSetGoal(3, 3, unlocked = false))
+        assertFalse(Reading.canSetGoal(3, 1, unlocked = false))
+        assertTrue(Reading.canSetGoal(3, 1, unlocked = true))
+    }
+
+    @Test fun chapterLabel() {
+        assertEquals("1 capítulo", Reading.chapters(1))
+        assertEquals("3 capítulos", Reading.chapters(3))
     }
 }
