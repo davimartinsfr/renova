@@ -48,6 +48,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var active: ActiveTarget? = null
     private var lastEvalAt = 0L
     private var lastBlockAt = 0L
+    private var lastPipExpandAt = 0L
 
     override fun onServiceConnected() {
         store = AppStore.get(this)
@@ -93,6 +94,7 @@ class BlockerAccessibilityService : AccessibilityService() {
             }
             if (!power.isInteractive) continue
             evaluate()
+            checkPictureInPicture()
             val target = active ?: continue
             val matched = rules.filter { RuleEngine.matches(it, target) }
             if (matched.isEmpty()) continue
@@ -133,21 +135,55 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
         active = null
-        // No Shorts basta voltar (o resto do YouTube continua liberado); nos demais, vai para a tela inicial.
-        performGlobalAction(if (rule.type == TargetType.YT_SHORTS) GLOBAL_ACTION_BACK else GLOBAL_ACTION_HOME)
-        startActivity(
-            Intent(this, BlockedActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
-                .putExtra(BlockedActivity.EXTRA_REASON, reason)
-                .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name),
-        )
+        // NO_USER_ACTION evita que o app de baixo receba o "usuário saiu", que é o gatilho do
+        // picture-in-picture automático (YouTube e afins continuariam tocando numa janelinha).
+        // Sair da tela de bloqueio já leva à tela inicial, então não é preciso apertar Home aqui.
+        val blockedScreen = Intent(this, BlockedActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
+            .putExtra(BlockedActivity.EXTRA_REASON, reason)
+            .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
+        if (rule.type == TargetType.YT_SHORTS) {
+            // No Shorts basta voltar (o resto do YouTube continua liberado); espera o YouTube sair do Shorts.
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            scope.launch {
+                delay(SHORTS_BACK_DELAY_MS)
+                startActivity(blockedScreen)
+            }
+        } else {
+            startActivity(blockedScreen)
+        }
         scope.launch { flushUsage() }
+    }
+
+    /**
+     * Um alvo bloqueado tocando em picture-in-picture (ex.: Home apertado dentro do Shorts) não aparece
+     * como janela ativa. Trazê-lo de volta à tela cheia deixa o bloqueio normal agir.
+     */
+    private fun checkPictureInPicture() {
+        val nowMs = System.currentTimeMillis()
+        if (unlockUntil > nowMs || nowMs - lastPipExpandAt < PIP_EXPAND_COOLDOWN_MS) return
+        val now = LocalDateTime.now()
+        for (window in windows) {
+            if (!window.isInPictureInPictureMode) continue
+            val target = window.root?.let(TargetDetector::detect) ?: continue
+            val blocked = rules.any { rule ->
+                RuleEngine.matches(rule, target) &&
+                    RuleEngine.blockReason(rule, usage[rule.id] ?: 0L, now, unlocked = false) != null
+            }
+            if (!blocked) continue
+            val launch = packageManager.getLaunchIntentForPackage(target.packageName) ?: continue
+            lastPipExpandAt = nowMs
+            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        }
     }
 
     companion object {
         private const val EVAL_THROTTLE_MS = 300L
         private const val BLOCK_COOLDOWN_MS = 1500L
+        private const val SHORTS_BACK_DELAY_MS = 400L
+        private const val PIP_EXPAND_COOLDOWN_MS = 3000L
         private const val FLUSH_EVERY_TICKS = 10
         private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60
         private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
