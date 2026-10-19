@@ -69,9 +69,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-internal data class InstalledApp(val label: String, val packageName: String)
-
-internal val SITE_SUGGESTIONS = listOf("reddit.com", "youtube.com/shorts", "tiktok.com", "instagram.com", "x.com", "facebook.com")
+private data class InstalledApp(val label: String, val packageName: String)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -110,15 +108,10 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
 
     fun build(): Rule? {
         val limit = if (limitOn) limitText.toIntOrNull()?.takeIf { it in 0..1440 } else null
-        val normalizedTarget = when (type) {
-            TargetType.APP -> target
-            TargetType.YT_SHORTS -> ""
-            TargetType.WEBSITE -> RuleEngine.normalizeDomain(target)
-        }
+        val normalizedTarget = if (type == TargetType.APP) target else ""
         error = when {
             limitOn && limit == null -> "Limite diário inválido."
-            type != TargetType.YT_SHORTS && normalizedTarget.isEmpty() ->
-                if (type == TargetType.APP) "Escolha um app." else "Digite um site válido (ex.: reddit.com)."
+            type == TargetType.APP && normalizedTarget.isEmpty() -> "Escolha um app."
             !limitOn && schedules.isEmpty() -> "Defina um limite diário ou ao menos um horário de bloqueio."
             else -> null
         }
@@ -127,11 +120,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             id = original?.id ?: UUID.randomUUID().toString(),
             type = type,
             target = normalizedTarget,
-            label = when (type) {
-                TargetType.YT_SHORTS -> "YouTube Shorts"
-                TargetType.WEBSITE -> normalizedTarget
-                TargetType.APP -> label.ifBlank { target }
-            },
+            label = if (type == TargetType.APP) label.ifBlank { target } else "YouTube Shorts",
             dailyLimitMin = limit,
             schedules = schedules.toList(),
             enabled = enabled,
@@ -168,7 +157,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("O que bloquear", style = MaterialTheme.typography.titleMedium)
-            val types = listOf(TargetType.YT_SHORTS to "Shorts", TargetType.APP to "App", TargetType.WEBSITE to "Site")
+            val types = listOf(TargetType.YT_SHORTS to "Shorts", TargetType.APP to "App")
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 types.forEachIndexed { i, (t, name) ->
                     SegmentedButton(
@@ -183,26 +172,8 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
                     "Bloqueia só o Shorts no app do YouTube (e youtube.com/shorts no navegador). O resto do YouTube continua liberado.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                TargetType.APP -> OutlinedButton(onClick = { pickingApp = true }, modifier = Modifier.fillMaxWidth()) {
+                else -> OutlinedButton(onClick = { pickingApp = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (target.isEmpty()) "Escolher app" else "$label ($target)")
-                }
-                TargetType.WEBSITE -> {
-                    OutlinedTextField(
-                        value = target,
-                        onValueChange = { target = it.trim() },
-                        label = { Text("Site (ex.: reddit.com)") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SITE_SUGGESTIONS.forEach { s -> FilterChip(selected = target == s, onClick = { target = s }, label = { Text(s) }) }
-                    }
-                    Text(
-                        "Funciona em Chrome, Firefox, Samsung Internet, Edge, Brave, Opera e DuckDuckGo. Inclui subdomínios.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
 
@@ -296,7 +267,7 @@ private fun ScheduleCard(s: Schedule, onChange: (Schedule) -> Unit, onDelete: ()
 }
 
 @Composable
-internal fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Unit) {
+private fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Unit) {
     val context = LocalContext.current
     val apps by produceState<List<InstalledApp>?>(null) {
         value = withContext(Dispatchers.IO) {

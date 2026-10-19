@@ -66,7 +66,6 @@ class RuleEngineTest {
         assertTrue(RuleEngine.urlMatches("m.youtube.com/shorts/abc", "youtube.com/shorts"))
         assertFalse(RuleEngine.urlMatches("youtube.com/watch?v=1", "youtube.com/shorts"))
         assertFalse(RuleEngine.urlMatches("pesquisar reddit", "reddit.com"))
-        assertEquals("youtube.com/shorts", RuleEngine.normalizeDomain("https://www.YouTube.com/shorts/"))
     }
 
     @Test fun targetMatching() {
@@ -75,9 +74,14 @@ class RuleEngineTest {
         assertFalse(RuleEngine.matches(shorts, ActiveTarget("com.google.android.youtube", isShorts = false)))
         assertTrue(RuleEngine.matches(shorts, ActiveTarget("com.android.chrome", url = "youtube.com/shorts/x")))
         assertTrue(RuleEngine.matches(reddit, ActiveTarget("com.reddit.frontpage")))
+        // O app bloqueia também o próprio site no navegador.
+        assertTrue(RuleEngine.matches(reddit, ActiveTarget("com.android.chrome", url = "www.reddit.com/r/all")))
+        assertFalse(RuleEngine.matches(reddit, ActiveTarget("com.android.chrome", url = "notreddit.com")))
+        assertFalse(RuleEngine.matches(reddit, ActiveTarget("com.android.chrome", url = null)))
+        val unknown = Rule("u", TargetType.APP, "com.exemplo.app", "Exemplo")
+        assertFalse(RuleEngine.matches(unknown, ActiveTarget("com.android.chrome", url = "exemplo.app")))
         val site = Rule("w", TargetType.WEBSITE, "reddit.com", "reddit.com")
-        assertTrue(RuleEngine.matches(site, ActiveTarget("com.android.chrome", url = "www.reddit.com/r/all")))
-        assertFalse(RuleEngine.matches(site, ActiveTarget("com.android.chrome", url = null)))
+        assertFalse(RuleEngine.matches(site, ActiveTarget("com.android.chrome", url = "www.reddit.com/r/all")))
     }
 
     @Test fun loosening() {

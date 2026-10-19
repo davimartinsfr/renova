@@ -40,7 +40,6 @@ class BlockerAccessibilityService : AccessibilityService() {
     private lateinit var power: PowerManager
 
     private var rules: List<Rule> = emptyList()
-    private var devotionTargets: List<Rule> = emptyList()
     private var devotionDoneDay: String? = null
     private var unlockUntil = 0L
     private var usageDate = LocalDate.now().toString()
@@ -59,7 +58,6 @@ class BlockerAccessibilityService : AccessibilityService() {
         power = getSystemService(PowerManager::class.java)
         scope.launch { store.rules.collect { rules = it } }
         scope.launch { store.unlockUntil.collect { unlockUntil = it } }
-        scope.launch { store.devotionTargets.collect { devotionTargets = it } }
         scope.launch { store.devotionDoneDay.collect { devotionDoneDay = it } }
         scope.launch {
             usage.putAll(store.usage.first().today())
@@ -132,12 +130,12 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     /**
      * Regra que bloqueia [target] agora, se houver. Os 7 minutos com o Senhor vêm primeiro e
-     * não cedem às liberações por leitura: só fazê-los solta os alvos da lista própria.
+     * não cedem às liberações por leitura: até fazê-los, todo alvo das regras fica bloqueado.
      */
     private fun blockFor(target: ActiveTarget): Pair<Rule, BlockReason>? {
         val now = LocalDateTime.now()
         if (!Devotion.isDone(devotionDoneDay, now)) {
-            devotionTargets.firstOrNull { RuleEngine.matches(it, target) }?.let { return it to BlockReason.DEVOTION }
+            rules.firstOrNull { RuleEngine.matches(it, target) }?.let { return it to BlockReason.DEVOTION }
         }
         val unlocked = unlockUntil > System.currentTimeMillis()
         for (rule in rules) {

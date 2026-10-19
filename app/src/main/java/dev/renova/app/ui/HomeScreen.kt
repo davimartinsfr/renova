@@ -23,6 +23,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,6 +32,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -47,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -67,7 +72,7 @@ import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTargets: () -> Unit) {
+fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
     val context = LocalContext.current
     val store = remember { AppStore.get(context) }
     val rules by store.rules.collectAsState(initial = emptyList())
@@ -77,7 +82,6 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTa
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
     val devotionDoneDay by store.devotionDoneDay.collectAsState(initial = null)
-    val devotionTargets by store.devotionTargets.collectAsState(initial = emptyList())
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -118,15 +122,30 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTa
                 },
             )
         },
+        bottomBar = {
+            NavigationBar {
+                HomeTab.entries.forEach { t ->
+                    NavigationBarItem(
+                        selected = tab == t,
+                        onClick = { onTabChange(t) },
+                        icon = { Icon(t.icon, null) },
+                        label = { Text(t.label) },
+                    )
+                }
+            }
+        },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = onNewRule, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Nova regra") })
+            if (tab == HomeTab.RULES) {
+                ExtendedFloatingActionButton(onClick = onNewRule, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Nova regra") })
+            }
         },
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 96.dp),
+            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, if (tab == HomeTab.RULES) 96.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // Avisos de configuração valem para o app todo: aparecem nas duas abas.
             update?.let { u ->
                 item {
                     SetupCard(
@@ -167,33 +186,45 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTa
                     action = "Permitir",
                 ) { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
             }
-            item {
-                DevotionCard(
-                    done = Devotion.isDone(devotionDoneDay, LocalDateTime.now()),
-                    targetCount = devotionTargets.size,
-                    onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
-                    onTargets = onDevotionTargets,
-                )
-            }
-            item {
-                ReadingCard(position, chaptersRead, unlocked, editUnlockUntil > now, unlockUntil - now) { option ->
-                    context.startReading(option)
+            when (tab) {
+                HomeTab.RULES -> {
+                    item {
+                        ReadingCard(position, chaptersRead, unlocked, editUnlockUntil > now, unlockUntil - now) { option ->
+                            context.startReading(option)
+                        }
+                    }
+                    item {
+                        Text("Regras", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    if (rules.isEmpty()) item {
+                        Text(
+                            "Nenhuma regra ainda. Toque em “Nova regra” para bloquear o YouTube Shorts, o Reddit ou qualquer app.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(rules, key = { it.id }) { rule ->
+                        RuleCard(rule, today[rule.id] ?: 0L, unlocked) { onEditRule(rule.id) }
+                    }
                 }
-            }
-            item {
-                Text("Regras", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-            }
-            if (rules.isEmpty()) item {
-                Text(
-                    "Nenhuma regra ainda. Toque em “Nova regra” para bloquear o YouTube Shorts, o Reddit ou qualquer app/site.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            items(rules, key = { it.id }) { rule ->
-                RuleCard(rule, today[rule.id] ?: 0L, unlocked) { onEditRule(rule.id) }
+                HomeTab.DEVOTION -> {
+                    item {
+                        DevotionCard(
+                            done = Devotion.isDone(devotionDoneDay, LocalDateTime.now()),
+                            targetCount = rules.count { it.enabled },
+                            onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
+                        )
+                    }
+                    item { DevotionStepsCard() }
+                }
             }
         }
     }
+}
+
+/** Abas da tela inicial. */
+enum class HomeTab(val label: String, val icon: ImageVector) {
+    RULES("Regras", Icons.Default.Lock),
+    DEVOTION("7 minutos", Icons.Default.Favorite),
 }
 
 private fun requestIgnoreBattery(context: Context) {
@@ -216,11 +247,11 @@ private fun SetupCard(title: String, text: String, action: String, urgent: Boole
 }
 
 @Composable
-private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit, onTargets: () -> Unit) {
+private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("7 minutos com o Senhor", style = MaterialTheme.typography.titleLarge)
-            val apps = if (targetCount == 1) "1 app" else "$targetCount apps"
+            val apps = if (targetCount == 1) "1 regra" else "$targetCount regras"
             Text(
                 when {
                     done -> "Feito hoje. ✓"
@@ -229,11 +260,42 @@ private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit, o
                 },
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (done) OutlinedButton(onClick = onStart) { Text("Fazer de novo") } else Button(onClick = onStart) { Text("Começar") }
-                OutlinedButton(onClick = onTargets) { Text("Apps ($targetCount)") }
+            if (done) OutlinedButton(onClick = onStart) { Text("Fazer de novo") } else Button(onClick = onStart) { Text("Começar") }
+        }
+    }
+}
+
+@Composable
+private fun DevotionStepsCard() {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Como funciona", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Até você fazer os 7 minutos, os apps das regras ativas ficam bloqueados, e as liberações por " +
+                    "leitura não valem. O dia recomeça às 4h.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Devotion.STEPS.forEachIndexed { i, step ->
+                Row {
+                    Text("${i + 1}. ${step.title}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(
+                        formatStepTime(step.seconds),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
+    }
+}
+
+private fun formatStepTime(seconds: Int): String {
+    val m = seconds / 60
+    val s = seconds % 60
+    return when {
+        m == 0 -> "$s s"
+        s == 0 -> "$m min"
+        else -> "$m min $s s"
     }
 }
 
@@ -288,7 +350,7 @@ private fun RuleCard(rule: Rule, usedSeconds: Long, unlocked: Boolean, onClick: 
                 Text(status, color = color, style = MaterialTheme.typography.labelLarge)
             }
             Text(
-                rule.typeLabel() + if (rule.type == dev.renova.app.domain.TargetType.WEBSITE) " · ${rule.target}" else "",
+                rule.typeLabel(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
