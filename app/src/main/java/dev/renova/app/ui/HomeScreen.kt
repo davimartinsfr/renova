@@ -67,7 +67,7 @@ import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTargets: () -> Unit) {
+fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
     val context = LocalContext.current
     val store = remember { AppStore.get(context) }
     val rules by store.rules.collectAsState(initial = emptyList())
@@ -77,7 +77,6 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTa
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
     val devotionDoneDay by store.devotionDoneDay.collectAsState(initial = null)
-    val devotionTargets by store.devotionTargets.collectAsState(initial = emptyList())
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -170,9 +169,8 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTa
             item {
                 DevotionCard(
                     done = Devotion.isDone(devotionDoneDay, LocalDateTime.now()),
-                    targetCount = devotionTargets.size,
+                    targetCount = rules.count { it.enabled },
                     onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
-                    onTargets = onDevotionTargets,
                 )
             }
             item {
@@ -216,11 +214,11 @@ private fun SetupCard(title: String, text: String, action: String, urgent: Boole
 }
 
 @Composable
-private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit, onTargets: () -> Unit) {
+private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("7 minutos com o Senhor", style = MaterialTheme.typography.titleLarge)
-            val apps = if (targetCount == 1) "1 app" else "$targetCount apps"
+            val apps = if (targetCount == 1) "1 regra" else "$targetCount regras"
             Text(
                 when {
                     done -> "Feito hoje. ✓"
@@ -229,10 +227,7 @@ private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit, o
                 },
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (done) OutlinedButton(onClick = onStart) { Text("Fazer de novo") } else Button(onClick = onStart) { Text("Começar") }
-                OutlinedButton(onClick = onTargets) { Text("Apps ($targetCount)") }
-            }
+            if (done) OutlinedButton(onClick = onStart) { Text("Fazer de novo") } else Button(onClick = onStart) { Text("Começar") }
         }
     }
 }

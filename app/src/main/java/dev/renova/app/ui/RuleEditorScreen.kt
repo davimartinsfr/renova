@@ -69,9 +69,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-internal data class InstalledApp(val label: String, val packageName: String)
+private data class InstalledApp(val label: String, val packageName: String)
 
-internal val SITE_SUGGESTIONS = listOf("reddit.com", "youtube.com/shorts", "tiktok.com", "instagram.com", "x.com", "facebook.com")
+private val SITE_SUGGESTIONS = listOf("reddit.com", "youtube.com/shorts", "tiktok.com", "instagram.com", "x.com", "facebook.com")
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -296,7 +296,7 @@ private fun ScheduleCard(s: Schedule, onChange: (Schedule) -> Unit, onDelete: ()
 }
 
 @Composable
-internal fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Unit) {
+private fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Unit) {
     val context = LocalContext.current
     val apps by produceState<List<InstalledApp>?>(null) {
         value = withContext(Dispatchers.IO) {

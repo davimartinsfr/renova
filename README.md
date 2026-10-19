@@ -18,8 +18,9 @@ regra exige uma liberação por capítulos — o versículo avulso não vale par
 
 ## 7 minutos com o Senhor
 
-Uma lista própria de apps/sites fica bloqueada todo dia até você fazer os **7 minutos com o Senhor**
-(o dia recomeça às 4h). As liberações por leitura não valem para essa lista. São sete etapas guiadas, cada
+Todos os apps/sites das regras ativas ficam bloqueados todo dia até você fazer os **7 minutos com o Senhor**
+(o dia recomeça às 4h), mesmo fora do horário de bloqueio ou dentro do limite. As liberações por leitura não
+valem para isso. São sete etapas guiadas, cada
 uma com seu tempo, que avançam sozinhas com um aviso sonoro (o tempo pausa fora do app):
 
 | Etapa | Tempo |
@@ -33,7 +34,7 @@ uma com seu tempo, que avançam sozinhas com um aviso sonoro (o tempo pausa fora
 | Petição | 1 min |
 
 Os trechos para orar-ler vêm de `app/src/main/assets/devotion/orar-ler.txt` (um por linha, um por dia, em
-rodízio). Tirar um app da lista exige ler 1 capítulo, como afrouxar uma regra.
+rodízio).
 
 ## Instalar no celular
 1. No celular, baixe o `.apk` da [última release](https://github.com/davimartinsfr/renova/releases/latest) e abra (permita "instalar apps desconhecidos"). Depois disso o próprio app avisa quando houver versão nova.
