@@ -2,7 +2,7 @@
 
 > "E não sede conformados com este mundo, mas sede transformados pela renovação do vosso entendimento" (Romanos 12:2)
 
-Bloqueador de apps, YouTube Shorts e sites para Android. Cada regra tem **limite diário** e/ou
+Bloqueador de apps e YouTube Shorts para Android. Cada regra tem **limite diário** e/ou
 **horários de bloqueio**. Para liberar os apps bloqueados, escolha quanto tempo e leia na Bíblia
 (Almeida Corrigida Fiel, offline):
 
@@ -18,7 +18,7 @@ regra exige uma liberação por capítulos — o versículo avulso não vale par
 
 ## 7 minutos com o Senhor
 
-Todos os apps/sites das regras ativas ficam bloqueados todo dia até você fazer os **7 minutos com o Senhor**
+Todos os apps das regras ativas ficam bloqueados todo dia até você fazer os **7 minutos com o Senhor**
 (o dia recomeça às 4h), mesmo fora do horário de bloqueio ou dentro do limite. As liberações por leitura não
 valem para isso. São sete etapas guiadas, cada
 uma com seu tempo, que avançam sozinhas com um aviso sonoro (o tempo pausa fora do app):

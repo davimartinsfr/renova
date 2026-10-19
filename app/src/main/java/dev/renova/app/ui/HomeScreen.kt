@@ -283,7 +283,7 @@ private fun RuleCard(rule: Rule, usedSeconds: Long, unlocked: Boolean, onClick: 
                 Text(status, color = color, style = MaterialTheme.typography.labelLarge)
             }
             Text(
-                rule.typeLabel() + if (rule.type == dev.renova.app.domain.TargetType.WEBSITE) " · ${rule.target}" else "",
+                rule.typeLabel(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Reading
 import dev.renova.app.domain.Rule
+import dev.renova.app.domain.TargetType
 import dev.renova.app.domain.UnlockOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -45,9 +46,11 @@ class AppStore private constructor(context: Context) {
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
     }
 
-    val rules: Flow<List<Rule>> = store.data.map { p ->
-        p[Keys.RULES]?.let { json.decodeFromString<List<Rule>>(it) } ?: emptyList()
-    }
+    val rules: Flow<List<Rule>> = store.data.map { it.rules() }
+
+    /** Regras salvas, sem as de site (tipo legado). */
+    private fun Preferences.rules(): List<Rule> =
+        this[Keys.RULES]?.let { json.decodeFromString<List<Rule>>(it) }.orEmpty().filter { it.type != TargetType.WEBSITE }
 
     val usage: Flow<DailyUsage> = store.data.map { p ->
         DailyUsage(
@@ -102,13 +105,13 @@ class AppStore private constructor(context: Context) {
     )
 
     suspend fun saveRule(rule: Rule) = store.edit { p ->
-        val list = p[Keys.RULES]?.let { json.decodeFromString<List<Rule>>(it) } ?: emptyList()
+        val list = p.rules()
         val updated = if (list.any { it.id == rule.id }) list.map { if (it.id == rule.id) rule else it } else list + rule
         p[Keys.RULES] = json.encodeToString(updated)
     }
 
     suspend fun deleteRule(id: String) = store.edit { p ->
-        val list = p[Keys.RULES]?.let { json.decodeFromString<List<Rule>>(it) } ?: emptyList()
+        val list = p.rules()
         p[Keys.RULES] = json.encodeToString(list.filterNot { it.id == id })
     }
 

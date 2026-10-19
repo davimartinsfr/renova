@@ -34,10 +34,11 @@ object RuleEngine {
     fun matches(rule: Rule, active: ActiveTarget): Boolean {
         if (!rule.enabled) return false
         return when (rule.type) {
-            TargetType.APP -> active.packageName == rule.target
+            TargetType.APP -> active.packageName == rule.target ||
+                OfficialSites.of(rule.target).any { site -> active.url?.let { urlMatches(it, site) } == true }
             TargetType.YT_SHORTS -> active.isShorts ||
                 (active.url != null && urlMatches(active.url, "youtube.com/shorts"))
-            TargetType.WEBSITE -> active.url != null && urlMatches(active.url, rule.target)
+            TargetType.WEBSITE -> false
         }
     }
 
@@ -47,11 +48,6 @@ object RuleEngine {
         val (pHost, pPath) = splitUrl(pattern) ?: return false
         val hostOk = host == pHost || host.endsWith(".$pHost")
         return hostOk && path.startsWith(pPath)
-    }
-
-    fun normalizeDomain(input: String): String {
-        val (host, path) = splitUrl(input) ?: return ""
-        return host + path.trimEnd('/')
     }
 
     private fun splitUrl(raw: String): Pair<String, String>? {

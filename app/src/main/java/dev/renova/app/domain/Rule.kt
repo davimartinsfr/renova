@@ -2,6 +2,7 @@ package dev.renova.app.domain
 
 import kotlinx.serialization.Serializable
 
+/** WEBSITE é legado: regras de site saíram (o app bloqueia o próprio site) e são descartadas ao carregar. */
 @Serializable
 enum class TargetType { APP, YT_SHORTS, WEBSITE }
 
@@ -21,7 +22,7 @@ data class Schedule(
 data class Rule(
     val id: String,
     val type: TargetType,
-    /** APP: nome do pacote. WEBSITE: domínio com caminho opcional (ex.: "youtube.com/shorts"). YT_SHORTS: vazio. */
+    /** APP: nome do pacote. YT_SHORTS: vazio. */
     val target: String = "",
     val label: String,
     val dailyLimitMin: Int? = null,
