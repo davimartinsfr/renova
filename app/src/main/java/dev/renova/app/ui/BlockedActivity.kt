@@ -35,9 +35,12 @@ import androidx.lifecycle.lifecycleScope
 import dev.renova.app.data.AppStore
 import dev.renova.app.data.Bible
 import dev.renova.app.domain.BlockReason
-import dev.renova.app.domain.UnlockOption
+import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.TargetType
+import dev.renova.app.domain.UnlockOption
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 
 class BlockedActivity : ComponentActivity() {
 
@@ -58,6 +61,7 @@ class BlockedActivity : ComponentActivity() {
                     nextReading = nextReading,
                     onLeave = ::leave,
                     onRead = ::startReading,
+                    onDevotion = { startActivity(Intent(this, DevotionActivity::class.java)) },
                 )
             }
         }
@@ -71,8 +75,16 @@ class BlockedActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Voltando da leitura com o desbloqueio concedido: some da frente.
-        lifecycleScope.launch { if (AppStore.get(this@BlockedActivity).isUnlocked()) finish() }
+        // Voltando da leitura (ou dos 7 minutos) com o bloqueio resolvido: some da frente.
+        lifecycleScope.launch {
+            val store = AppStore.get(this@BlockedActivity)
+            val resolved = if (intent.getStringExtra(EXTRA_REASON) == BlockReason.DEVOTION.name) {
+                Devotion.isDone(store.devotionDoneDay.first(), LocalDateTime.now())
+            } else {
+                store.isUnlocked()
+            }
+            if (resolved) finish()
+        }
     }
 
     private fun leave() {
@@ -96,7 +108,9 @@ private fun BlockedScreen(
     nextReading: String?,
     onLeave: () -> Unit,
     onRead: (UnlockOption) -> Unit,
+    onDevotion: () -> Unit,
 ) {
+    val devotion = reason == BlockReason.DEVOTION.name
     var choosing by remember { mutableStateOf(false) }
     if (choosing) {
         UnlockOptionsDialog(onDismiss = { choosing = false }) { option ->
@@ -117,6 +131,7 @@ private fun BlockedScreen(
             Text(
                 when (reason) {
                     BlockReason.LIMIT.name -> "Você atingiu o limite de hoje."
+                    BlockReason.DEVOTION.name -> "Antes, seus 7 minutos com o Senhor de hoje."
                     else -> "Este é um horário de bloqueio."
                 },
                 style = MaterialTheme.typography.bodyLarge,
@@ -124,8 +139,13 @@ private fun BlockedScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(40.dp))
-            Button(onClick = { choosing = true }, modifier = Modifier.fillMaxWidth()) { Text(UNLOCK_BUTTON_LABEL) }
-            if (nextReading != null) {
+            if (devotion) {
+                // As liberações por leitura não valem aqui: só os 7 minutos soltam estes alvos.
+                Button(onClick = onDevotion, modifier = Modifier.fillMaxWidth()) { Text("Começar os 7 minutos") }
+            } else {
+                Button(onClick = { choosing = true }, modifier = Modifier.fillMaxWidth()) { Text(UNLOCK_BUTTON_LABEL) }
+            }
+            if (nextReading != null && !devotion) {
                 Text(
                     nextReading,
                     style = MaterialTheme.typography.bodySmall,

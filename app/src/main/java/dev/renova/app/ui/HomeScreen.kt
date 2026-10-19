@@ -56,6 +56,7 @@ import dev.renova.app.data.Updater
 import dev.renova.app.data.Bible
 import dev.renova.app.data.DailyUsage
 import dev.renova.app.domain.BiblePosition
+import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.UnlockOption
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.RuleEngine
@@ -66,7 +67,7 @@ import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
+fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit, onDevotionTargets: () -> Unit) {
     val context = LocalContext.current
     val store = remember { AppStore.get(context) }
     val rules by store.rules.collectAsState(initial = emptyList())
@@ -75,6 +76,8 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
     val position by store.biblePosition.collectAsState(initial = BiblePosition())
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
+    val devotionDoneDay by store.devotionDoneDay.collectAsState(initial = null)
+    val devotionTargets by store.devotionTargets.collectAsState(initial = emptyList())
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -165,6 +168,14 @@ fun HomeScreen(onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
                 ) { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
             }
             item {
+                DevotionCard(
+                    done = Devotion.isDone(devotionDoneDay, LocalDateTime.now()),
+                    targetCount = devotionTargets.size,
+                    onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
+                    onTargets = onDevotionTargets,
+                )
+            }
+            item {
                 ReadingCard(position, chaptersRead, unlocked, editUnlockUntil > now, unlockUntil - now) { option ->
                     context.startReading(option)
                 }
@@ -200,6 +211,28 @@ private fun SetupCard(title: String, text: String, action: String, urgent: Boole
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(text, style = MaterialTheme.typography.bodyMedium)
             Button(onClick = onClick) { Text(action) }
+        }
+    }
+}
+
+@Composable
+private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit, onTargets: () -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+        Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("7 minutos com o Senhor", style = MaterialTheme.typography.titleLarge)
+            val apps = if (targetCount == 1) "1 app" else "$targetCount apps"
+            Text(
+                when {
+                    done -> "Feito hoje. ✓"
+                    targetCount == 0 -> "Ainda não feito hoje."
+                    else -> "Ainda não feito hoje: $apps aguardando."
+                },
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (done) OutlinedButton(onClick = onStart) { Text("Fazer de novo") } else Button(onClick = onStart) { Text("Começar") }
+                OutlinedButton(onClick = onTargets) { Text("Apps ($targetCount)") }
+            }
         }
     }
 }

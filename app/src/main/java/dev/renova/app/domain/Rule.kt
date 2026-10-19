@@ -36,4 +36,4 @@ data class ActiveTarget(
     val url: String? = null,
 )
 
-enum class BlockReason { SCHEDULE, LIMIT }
+enum class BlockReason { SCHEDULE, LIMIT, DEVOTION }

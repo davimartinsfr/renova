@@ -39,6 +39,8 @@ class AppStore private constructor(context: Context) {
         val BIBLE_ROUNDS = intPreferencesKey("bible_rounds")
         val CHAPTERS_READ = intPreferencesKey("chapters_read")
         val EDIT_UNLOCK_UNTIL = longPreferencesKey("edit_unlock_until")
+        val DEVOTION_DONE_DAY = stringPreferencesKey("devotion_done_day")
+        val DEVOTION_TARGETS = stringPreferencesKey("devotion_targets")
         val UPDATE = stringPreferencesKey("update")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
@@ -58,6 +60,18 @@ class AppStore private constructor(context: Context) {
     val unlockUntil: Flow<Long> = store.data.map { it[Keys.UNLOCK_UNTIL] ?: 0L }
 
     val biblePosition: Flow<BiblePosition> = store.data.map { it.position() }
+
+    /** Dia (ver [Devotion.dayKey]) em que os 7 minutos foram feitos pela última vez. */
+    val devotionDoneDay: Flow<String?> = store.data.map { it[Keys.DEVOTION_DONE_DAY] }
+
+    /** Alvos presos até os 7 minutos do dia (regras sem limite nem horário: só alvo). */
+    val devotionTargets: Flow<List<Rule>> = store.data.map { p ->
+        p[Keys.DEVOTION_TARGETS]?.let { json.decodeFromString<List<Rule>>(it) } ?: emptyList()
+    }
+
+    suspend fun setDevotionDone(dayKey: String) = store.edit { it[Keys.DEVOTION_DONE_DAY] = dayKey }
+
+    suspend fun saveDevotionTargets(targets: List<Rule>) = store.edit { it[Keys.DEVOTION_TARGETS] = json.encodeToString(targets) }
 
     val chaptersRead: Flow<Int> = store.data.map { it[Keys.CHAPTERS_READ] ?: 0 }
 

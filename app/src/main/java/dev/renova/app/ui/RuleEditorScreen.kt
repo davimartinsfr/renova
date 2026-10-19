@@ -69,9 +69,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-private data class InstalledApp(val label: String, val packageName: String)
+internal data class InstalledApp(val label: String, val packageName: String)
 
-private val SITE_SUGGESTIONS = listOf("reddit.com", "youtube.com/shorts", "tiktok.com", "instagram.com", "x.com", "facebook.com")
+internal val SITE_SUGGESTIONS = listOf("reddit.com", "youtube.com/shorts", "tiktok.com", "instagram.com", "x.com", "facebook.com")
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -256,25 +256,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
         )
     }
 
-    if (needReading) {
-        AlertDialog(
-            onDismissRequest = { needReading = false },
-            title = { Text("Isso afrouxa o bloqueio") },
-            text = {
-                Text(
-                    "Para apagar, desativar ou afrouxar uma regra, leia ${UnlockOption.CHAPTER.reading} da Bíblia. " +
-                        "Depois você terá ${UnlockOption.CHAPTER.duration} para fazer a alteração (os apps também ficam liberados).",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    needReading = false
-                    context.startReading(UnlockOption.CHAPTER)
-                }) { Text("Ler agora") }
-            },
-            dismissButton = { TextButton(onClick = { needReading = false }) { Text("Cancelar") } },
-        )
-    }
+    if (needReading) LooseningDialog("Para apagar, desativar ou afrouxar uma regra") { needReading = false }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -314,7 +296,7 @@ private fun ScheduleCard(s: Schedule, onChange: (Schedule) -> Unit, onDelete: ()
 }
 
 @Composable
-private fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Unit) {
+internal fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Unit) {
     val context = LocalContext.current
     val apps by produceState<List<InstalledApp>?>(null) {
         value = withContext(Dispatchers.IO) {

@@ -11,6 +11,8 @@ import dev.renova.app.data.AppStore
 import dev.renova.app.data.DailyUsage
 import dev.renova.app.data.Updater
 import dev.renova.app.domain.ActiveTarget
+import dev.renova.app.domain.BlockReason
+import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.RuleEngine
 import dev.renova.app.domain.TargetType
@@ -38,6 +40,8 @@ class BlockerAccessibilityService : AccessibilityService() {
     private lateinit var power: PowerManager
 
     private var rules: List<Rule> = emptyList()
+    private var devotionTargets: List<Rule> = emptyList()
+    private var devotionDoneDay: String? = null
     private var unlockUntil = 0L
     private var usageDate = LocalDate.now().toString()
     private val usage = mutableMapOf<String, Long>()
@@ -55,6 +59,8 @@ class BlockerAccessibilityService : AccessibilityService() {
         power = getSystemService(PowerManager::class.java)
         scope.launch { store.rules.collect { rules = it } }
         scope.launch { store.unlockUntil.collect { unlockUntil = it } }
+        scope.launch { store.devotionTargets.collect { devotionTargets = it } }
+        scope.launch { store.devotionDoneDay.collect { devotionDoneDay = it } }
         scope.launch {
             usage.putAll(store.usage.first().today())
             usageLoaded = true
@@ -120,14 +126,26 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     private fun checkBlock() {
         val target = active ?: return
-        val unlocked = unlockUntil > System.currentTimeMillis()
+        val (rule, reason) = blockFor(target) ?: return
+        block(rule, reason.name)
+    }
+
+    /**
+     * Regra que bloqueia [target] agora, se houver. Os 7 minutos com o Senhor vêm primeiro e
+     * não cedem às liberações por leitura: só fazê-los solta os alvos da lista própria.
+     */
+    private fun blockFor(target: ActiveTarget): Pair<Rule, BlockReason>? {
         val now = LocalDateTime.now()
+        if (!Devotion.isDone(devotionDoneDay, now)) {
+            devotionTargets.firstOrNull { RuleEngine.matches(it, target) }?.let { return it to BlockReason.DEVOTION }
+        }
+        val unlocked = unlockUntil > System.currentTimeMillis()
         for (rule in rules) {
             if (!RuleEngine.matches(rule, target)) continue
             val reason = RuleEngine.blockReason(rule, usage[rule.id] ?: 0L, now, unlocked) ?: continue
-            block(rule, reason.name)
-            return
+            return rule to reason
         }
+        return null
     }
 
     private fun block(rule: Rule, reason: String) {
@@ -162,16 +180,11 @@ class BlockerAccessibilityService : AccessibilityService() {
      */
     private fun checkPictureInPicture() {
         val nowMs = System.currentTimeMillis()
-        if (unlockUntil > nowMs || nowMs - lastPipExpandAt < PIP_EXPAND_COOLDOWN_MS) return
-        val now = LocalDateTime.now()
+        if (nowMs - lastPipExpandAt < PIP_EXPAND_COOLDOWN_MS) return
         for (window in windows) {
             if (!window.isInPictureInPictureMode) continue
             val target = window.root?.let(TargetDetector::detect) ?: continue
-            val blocked = rules.any { rule ->
-                RuleEngine.matches(rule, target) &&
-                    RuleEngine.blockReason(rule, usage[rule.id] ?: 0L, now, unlocked = false) != null
-            }
-            if (!blocked) continue
+            if (blockFor(target) == null) continue
             val launch = packageManager.getLaunchIntentForPackage(target.packageName) ?: continue
             lastPipExpandAt = nowMs
             startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

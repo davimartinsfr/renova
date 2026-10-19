@@ -2,6 +2,7 @@ package dev.renova.app.data
 
 import android.content.Context
 import dev.renova.app.domain.BiblePosition
+import dev.renova.app.domain.VerseRef
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -9,6 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.InputStream
+import java.text.Normalizer
 import kotlin.random.Random
 
 @Serializable
@@ -35,6 +37,37 @@ class Bible(val books: List<BibleBook>) {
 
     private val verseCount = books.sumOf { book -> book.chapters.sumOf { it.size } }
 
+    /**
+     * Lê referências como "Salmos 23:1-2", "Sl 23:1", "1 João 1:9" ou "joao 3:16" (sem acento vale).
+     * Devolve null se o livro não existir ou o capítulo/versículo estiver fora da Bíblia.
+     */
+    fun parseReference(text: String): VerseRef? {
+        val m = REFERENCE.matchEntire(text.trim()) ?: return null
+        val book = findBook(m.groupValues[1]) ?: return null
+        val chapter = m.groupValues[2].toInt()
+        val from = m.groupValues[3].toInt()
+        val to = m.groupValues[4].ifEmpty { m.groupValues[3] }.toInt()
+        val verses = books[book].chapters.getOrNull(chapter - 1) ?: return null
+        if (from < 1 || to < from || to > verses.size) return null
+        return VerseRef(book, chapter, from, to)
+    }
+
+    fun verses(ref: VerseRef): List<String> = verses(ref.book, ref.chapter - 1).subList(ref.fromVerse - 1, ref.toVerse)
+
+    fun title(ref: VerseRef): String {
+        val range = if (ref.fromVerse == ref.toVerse) "${ref.fromVerse}" else "${ref.fromVerse}-${ref.toVerse}"
+        return "${BOOK_NAMES[ref.book]} ${ref.chapter}:$range"
+    }
+
+    private fun findBook(raw: String): Int? {
+        val exact = raw.lowercase().replace(" ", "")
+        val plain = exact.withoutAccents()
+        // Abreviação exata primeiro: "jó" (Jó) e "jo" (João) só se distinguem pelo acento.
+        books.indexOfFirst { it.abbrev == exact }.takeIf { it >= 0 }?.let { return it }
+        BOOK_NAMES.indexOfFirst { it.lowercase().replace(" ", "").withoutAccents() == plain }.takeIf { it >= 0 }?.let { return it }
+        return books.indexOfFirst { it.abbrev.withoutAccents() == plain }.takeIf { it >= 0 }
+    }
+
     companion object {
         val BOOK_NAMES = listOf(
             "Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio", "Josué",
@@ -51,6 +84,11 @@ class Bible(val books: List<BibleBook>) {
         )
 
         fun title(pos: BiblePosition) = "${BOOK_NAMES[pos.book]} ${pos.chapter + 1}"
+
+        private val REFERENCE = Regex("""(\d?\s*\D+?)\s*(\d+)\s*:\s*(\d+)(?:\s*[-–]\s*(\d+))?""")
+
+        private fun String.withoutAccents() =
+            Normalizer.normalize(this, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
 
         private val json = Json { ignoreUnknownKeys = true }
         private val mutex = Mutex()

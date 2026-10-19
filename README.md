@@ -16,6 +16,25 @@ Os capítulos seguem um plano contínuo a partir de Gênesis 1. Cada um só cont
 permanecer o tempo mínimo (~200 palavras/min, mínimo 30 s; 10 s para o versículo). Afrouxar ou apagar uma
 regra exige uma liberação por capítulos — o versículo avulso não vale para isso.
 
+## 7 minutos com o Senhor
+
+Uma lista própria de apps/sites fica bloqueada todo dia até você fazer os **7 minutos com o Senhor**
+(o dia recomeça às 4h). As liberações por leitura não valem para essa lista. São sete etapas guiadas, cada
+uma com seu tempo, que avançam sozinhas com um aviso sonoro (o tempo pausa fora do app):
+
+| Etapa | Tempo |
+|---|---|
+| Invocar | 30 s |
+| Orar | 1 min |
+| Orar-ler | 2 min 30 s |
+| Confissão | 1 min |
+| Consagração | 30 s |
+| Ação de graças | 30 s |
+| Petição | 1 min |
+
+Os trechos para orar-ler vêm de `app/src/main/assets/devotion/orar-ler.txt` (um por linha, um por dia, em
+rodízio). Tirar um app da lista exige ler 1 capítulo, como afrouxar uma regra.
+
 ## Instalar no celular
 1. No celular, baixe o `.apk` da [última release](https://github.com/davimartinsfr/renova/releases/latest) e abra (permita "instalar apps desconhecidos"). Depois disso o próprio app avisa quando houver versão nova.
 2. **Android 13+**: Configurações › Apps › Renova › ⋮ › **Permitir configurações restritas**

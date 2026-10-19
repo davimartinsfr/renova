@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.renova.app.domain.UnlockOption
 
@@ -47,6 +48,29 @@ fun UnlockOptionsDialog(onDismiss: () -> Unit, onPick: (UnlockOption) -> Unit) {
             }
         },
         confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
+
+/** Pede a leitura de capítulos antes de uma mudança que afrouxa o bloqueio. [action] completa a frase. */
+@Composable
+fun LooseningDialog(action: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Isso afrouxa o bloqueio") },
+        text = {
+            Text(
+                "$action, leia ${UnlockOption.CHAPTER.reading} da Bíblia. " +
+                    "Depois você terá ${UnlockOption.CHAPTER.duration} para fazer a alteração (os apps também ficam liberados).",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                context.startReading(UnlockOption.CHAPTER)
+            }) { Text("Ler agora") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
 }
