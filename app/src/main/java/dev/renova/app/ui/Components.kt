@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -59,6 +60,8 @@ fun PageHeader(
     verse: String? = null,
     ref: String? = null,
     modifier: Modifier = Modifier,
+    /** Trecho do versículo que vai em negrito. */
+    highlight: String? = null,
     action: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier.padding(top = 24.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -70,7 +73,14 @@ fun PageHeader(
             val muted = MaterialTheme.colorScheme.onSurfaceVariant
             Text(
                 buildAnnotatedString {
-                    append(verse)
+                    val start = highlight?.let { verse.indexOf(it) } ?: -1
+                    if (start < 0) {
+                        append(verse)
+                    } else {
+                        append(verse.substring(0, start))
+                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(highlight) }
+                        append(verse.substring(start + highlight!!.length))
+                    }
                     if (ref != null) {
                         append(" ")
                         withStyle(SpanStyle(color = muted.copy(alpha = 0.7f))) { append(ref) }

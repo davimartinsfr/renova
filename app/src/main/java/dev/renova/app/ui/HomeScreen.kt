@@ -164,6 +164,7 @@ fun HomeScreen(
                         "E não vos conformeis com este século, mas transformai-vos pela renovação da vossa mente, " +
                             "para que experimenteis qual seja a boa, agradável e perfeita vontade de Deus.",
                         "Rm 12:2",
+                        highlight = "transformai-vos pela renovação da vossa mente",
                     ) {
                         IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Configurações") }
                     }
