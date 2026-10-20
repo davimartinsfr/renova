@@ -1,6 +1,7 @@
 package dev.renova.app.ui
 
 import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +15,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
@@ -144,10 +146,13 @@ private val RenovaShapes = Shapes(
 @Composable
 fun AppTheme(dark: Boolean = chosenDarkTheme(), content: @Composable () -> Unit) {
     val extra = ExtraColors(ok = if (dark) Color(0xFF8FBF7A) else Color(0xFF3F6B2E))
-    // Ícones da barra de status na cor certa mesmo quando o tema escolhido difere do sistema.
+    // Ícones da barra de status na cor certa mesmo quando o tema escolhido difere do sistema, e o fundo
+    // da janela acompanhando a troca de tema, que não recria a tela (configChanges="uiMode").
     val view = LocalView.current
+    val background = (if (dark) DarkColors else LightColors).background
     if (!view.isInEditMode) SideEffect {
         (view.context as? Activity)?.window?.let { w ->
+            w.setBackgroundDrawable(ColorDrawable(background.toArgb()))
             WindowCompat.getInsetsController(w, view).run {
                 isAppearanceLightStatusBars = !dark
                 isAppearanceLightNavigationBars = !dark

@@ -22,8 +22,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Renova">
 
+        <!-- uiMode: trocar o tema nas Configurações não recria a tela (o Compose troca as cores sozinho). -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -33,6 +35,7 @@
 
         <activity
             android:name=".ui.BlockedActivity"
+            android:configChanges="uiMode"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
@@ -40,10 +43,12 @@
 
         <activity
             android:name=".ui.ReadingActivity"
+            android:configChanges="uiMode"
             android:exported="false" />
 
         <activity
             android:name=".ui.DevotionActivity"
+            android:configChanges="uiMode"
             android:exported="false" />
 
         <provider
