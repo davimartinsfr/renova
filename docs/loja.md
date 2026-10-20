@@ -5,7 +5,7 @@ Para copiar no Play Console. Limites da Play entre parênteses.
 ## Nome do app (30)
 
 ```
-Renova: bloqueio com a Bíblia
+Renova: menos tela mais Bíblia
 ```
 
 ## Descrição curta (80)
