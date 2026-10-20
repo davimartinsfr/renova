@@ -20,8 +20,8 @@ android {
         applicationId = "dev.renova.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24
-        versionName = "1.10.7"
+        versionCode = 25
+        versionName = "1.10.8"
     }
 
     // github: APK das releases, com atualizador próprio. play: AAB da Play Store, quem atualiza é a loja.
