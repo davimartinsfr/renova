@@ -149,8 +149,8 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
         ) {
             item {
                 when (tab) {
-                    HomeTab.RULES -> PageHeader("Renova", "Sede transformados pela renovação do vosso entendimento.", "Rm 12:2")
-                    HomeTab.DEVOTION -> PageHeader("7 minutos", "Provai, e vede que o Senhor é bom.", "Sl 34:8")
+                    HomeTab.RULES -> PageHeader("Renova", "Transformai-vos pela renovação da vossa mente.", "Rm 12:2")
+                    HomeTab.DEVOTION -> PageHeader("7 minutos", "Provai e vede que o Senhor é bom.", "Sl 34:8")
                 }
             }
             // Avisos de configuração valem para o app todo: aparecem nas duas abas.

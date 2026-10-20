@@ -1,10 +1,10 @@
 # Renova
 
-> "E não sede conformados com este mundo, mas sede transformados pela renovação do vosso entendimento" (Romanos 12:2)
+> "E não vos conformeis com este século, mas transformai-vos pela renovação da vossa mente" (Romanos 12:2)
 
 Bloqueador de apps, YouTube Shorts e Instagram Reels para Android. Cada regra tem **limite diário** e/ou
 **horários de bloqueio**. Para liberar os apps bloqueados, escolha quanto tempo e leia na Bíblia
-(Almeida Corrigida Fiel, offline):
+(Almeida Revista e Atualizada, offline):
 
 | Liberação | Leitura |
 |---|---|

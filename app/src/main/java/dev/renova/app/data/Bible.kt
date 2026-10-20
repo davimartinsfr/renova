@@ -97,10 +97,10 @@ class Bible(val books: List<BibleBook>) {
         fun parse(input: InputStream): Bible =
             Bible(json.decodeFromString(input.bufferedReader(Charsets.UTF_8).use { it.readText() }))
 
-        /** Almeida Corrigida Fiel, embutida em assets (~4 MB); carregada uma vez. */
+        /** Almeida Revista e Atualizada, embutida em assets (~4 MB); carregada uma vez. */
         suspend fun load(context: Context): Bible = cached ?: mutex.withLock {
             cached ?: withContext(Dispatchers.IO) {
-                context.assets.open("bible/acf.json").use { parse(it) }
+                context.assets.open("bible/ara.json").use { parse(it) }
             }.also { cached = it }
         }
     }

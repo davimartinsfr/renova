@@ -11,7 +11,7 @@ import org.junit.Test
 import java.io.File
 
 class ReadingTest {
-    private val bible by lazy { File("src/main/assets/bible/acf.json").inputStream().use { Bible.parse(it) } }
+    private val bible by lazy { File("src/main/assets/bible/ara.json").inputStream().use { Bible.parse(it) } }
 
     @Test fun minimumTime() {
         assertEquals(30, Reading.minSeconds(listOf("curto demais")))
@@ -22,7 +22,7 @@ class ReadingTest {
         assertEquals(66, bible.books.size)
         assertEquals(1189, bible.chaptersPerBook.sum())
         assertEquals(Bible.BOOK_NAMES, bible.books.map { it.name })
-        assertEquals("No princípio criou Deus o céu e a terra.", bible.verses(0, 0)[0])
+        assertEquals("No princípio, criou Deus os céus e a terra.", bible.verses(0, 0)[0])
         assertEquals("Gênesis 1", bible.title(0, 0))
     }
 
@@ -62,7 +62,7 @@ class UnlockOptionTest {
 }
 
 class RandomVerseTest {
-    private val bible by lazy { File("src/main/assets/bible/acf.json").inputStream().use { Bible.parse(it) } }
+    private val bible by lazy { File("src/main/assets/bible/ara.json").inputStream().use { Bible.parse(it) } }
 
     @Test fun drawsValidVersesAcrossTheBible() {
         val random = kotlin.random.Random(42)

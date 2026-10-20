@@ -293,7 +293,7 @@ private fun Finished(until: Long, onClose: () -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
             Text("Livre · ${formatCountdown(remaining)}", style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(20.dp))
-            Text("“Lâmpada para os meus pés é tua palavra, e luz para o meu caminho.”", fontFamily = FrauncesText, fontSize = 22.sp, lineHeight = 32.sp)
+            Text("“Lâmpada para os meus pés é a tua palavra e, luz para os meus caminhos.”", fontFamily = FrauncesText, fontSize = 22.sp, lineHeight = 32.sp)
             Text(
                 "Salmos 119:105",
                 style = MaterialTheme.typography.labelLarge,

@@ -48,7 +48,7 @@ class DevotionTest {
 }
 
 class VerseReferenceTest {
-    private val bible by lazy { File("src/main/assets/bible/acf.json").inputStream().use { Bible.parse(it) } }
+    private val bible by lazy { File("src/main/assets/bible/ara.json").inputStream().use { Bible.parse(it) } }
 
     @Test fun parsesNamesAbbreviationsAndRanges() {
         assertEquals(VerseRef(18, 23, 1, 2), bible.parseReference("Salmos 23:1-2"))

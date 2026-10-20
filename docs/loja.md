@@ -48,7 +48,7 @@ PRIVADO DE VERDADE
 SOBRE A ACESSIBILIDADE
 O Renova usa o serviço de acessibilidade do Android para saber qual app está aberto e reconhecer o Shorts, o Reels e os sites abertos no navegador. Ele usa isso só para aplicar as suas regras e contar o tempo de uso. Nada do que aparece na tela é guardado ou enviado. O app pede sua permissão antes de ativar o serviço, e você pode desativá-lo quando quiser.
 
-Texto bíblico: [CRÉDITO DA TRADUÇÃO]
+Texto bíblico: Almeida Revista e Atualizada, 2ª ed. © Sociedade Bíblica do Brasil, 1993.
 ```
 
 ## Categoria e detalhes
