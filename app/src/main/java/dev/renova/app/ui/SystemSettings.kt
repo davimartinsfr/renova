@@ -11,7 +11,6 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.ActivityCompat
-import dev.renova.app.BuildConfig
 import dev.renova.app.service.BlockerAccessibilityService
 
 /*
@@ -33,21 +32,11 @@ internal fun openAccessibilitySettings(context: Context) {
     context.startActivity(intent)
 }
 
-/** Na Play, o botão abre a página do app; esta é a opção que conta como liberado. */
-internal val BATTERY_HINT: String? =
-    if (BuildConfig.PLAY_STORE) "Toque em Bateria ou Uso da bateria do app e escolha Sem restrições." else null
-
 private fun appDetails(context: Context) =
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
 
+/** Pop-up do sistema para o Renova rodar em segundo plano sem restrições. */
 internal fun requestIgnoreBattery(context: Context) {
-    // A Play Store não aceita a permissão de pedir a isenção direto: lá abrimos a página do Renova,
-    // onde "Bateria" fica a um toque, em vez da lista de todos os apps.
-    if (BuildConfig.PLAY_STORE) {
-        runCatching { context.startActivity(appDetails(context)) }
-            .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
-        return
-    }
     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))
     runCatching { context.startActivity(intent) }
         .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }

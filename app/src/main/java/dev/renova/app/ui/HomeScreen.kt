@@ -200,9 +200,7 @@ fun HomeScreen(
                         ) { showDisclosure = true }
                     }
                     if (!batteryOk) {
-                        NoticeRow(text = "Permita rodar em segundo plano", action = "Permitir", detail = BATTERY_HINT) {
-                            requestIgnoreBattery(context)
-                        }
+                        NoticeRow(text = "Permita rodar em segundo plano", action = "Permitir") { requestIgnoreBattery(context) }
                     }
                     if (!notifOk) {
                         NoticeRow(text = "Permita notificações", action = "Permitir") {
