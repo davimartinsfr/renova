@@ -184,7 +184,7 @@ internal fun Running(elapsed: Int, prayReading: PrayReading?) {
                 prayReading.verses.forEachIndexed { i, verse ->
                     Text(
                         "${prayReading.firstVerse + i} $verse",
-                        fontFamily = FrauncesText,
+                        fontFamily = Gelasio,
                         fontSize = 19.sp,
                         lineHeight = 29.sp,
                     )
@@ -216,7 +216,7 @@ private fun Finished(onClose: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(28.dp))
-            Text("“Oh! Provai e vede que o Senhor é bom.”", fontFamily = FrauncesText, fontSize = 22.sp, lineHeight = 32.sp)
+            Text("“Oh! Provai e vede que o Senhor é bom.”", fontFamily = Gelasio, fontSize = 22.sp, lineHeight = 32.sp)
             Text(
                 "Salmos 34:8",
                 style = MaterialTheme.typography.labelLarge,

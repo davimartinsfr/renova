@@ -58,5 +58,5 @@ Guarde `keystore/` e `keystore.properties`: sem eles, futuras versões não inst
 
 ## Créditos
 
-- Fontes Fraunces e Inter (SIL Open Font License).
+- Fontes Fraunces, Gelasio e Inter (SIL Open Font License).
 - Ampulheta da tela de bloqueio: "Hourglass" de Rahmad romadoni, [Noun Project](https://thenounproject.com/icon/hourglass-8314367/) (CC BY 3.0).

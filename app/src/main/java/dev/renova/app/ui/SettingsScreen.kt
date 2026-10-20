@@ -231,7 +231,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             text = {
                 Text(
                     "Texto bíblico: Almeida Revista e Atualizada, 2ª ed. © Sociedade Bíblica do Brasil, 1993.\n\n" +
-                        "Fontes: Fraunces e Inter, licença SIL Open Font License.\n\n" +
+                        "Fontes: Fraunces, Gelasio e Inter, licença SIL Open Font License.\n\n" +
                         "Ampulheta: “Hourglass” de Rahmad romadoni, Noun Project, licença CC BY 3.0.",
                 )
             },

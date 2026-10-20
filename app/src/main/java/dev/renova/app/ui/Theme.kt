@@ -100,8 +100,8 @@ private val LightColors = lightColorScheme(
 /** Títulos em Fraunces Black (serifa pesada). */
 val Fraunces = FontFamily(Font(R.font.fraunces_black, FontWeight.Black))
 
-/** Versículos em Fraunces Regular. */
-val FrauncesText = FontFamily(Font(R.font.fraunces_regular, FontWeight.Normal))
+/** Texto bíblico em Gelasio, a versão livre da Georgia. */
+val Gelasio = FontFamily(Font(R.font.gelasio_regular, FontWeight.Normal))
 
 /** Texto corrido, botões e listas. */
 val Inter = FontFamily(
