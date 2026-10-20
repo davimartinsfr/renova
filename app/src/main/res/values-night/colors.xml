@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="window_background">#141416</color>
+    <color name="ic_background">#141416</color>
+    <color name="ic_stem">#C8913F</color>
+    <color name="ic_leaf">#8AA05E</color>
+    <color name="ic_bud">#A8708C</color>
 </resources>

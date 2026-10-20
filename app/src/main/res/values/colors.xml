@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_background">#141416</color>
     <color name="window_background">#F7F3EC</color>
+    <!-- Ícone do app no tema claro: fundo creme e cores mais fortes para manter o contraste. -->
+    <color name="ic_background">#F7F3EC</color>
+    <color name="ic_stem">#9C6A1E</color>
+    <color name="ic_leaf">#5F7D45</color>
+    <color name="ic_bud">#8E5A74</color>
 </resources>

@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
@@ -39,13 +40,14 @@ class IconPreviewTest {
 
     /** O launcher mostra só os 72dp centrais dos 108dp da camada. */
     @Composable
-    private fun Masked(size: Dp, shape: Shape, bg: Color = Color(0xFF141416)) {
+    private fun Masked(size: Dp, shape: Shape, bg: Color = colorResource(R.color.ic_background)) {
         Box(Modifier.size(size).clip(shape).background(bg), contentAlignment = Alignment.Center) {
             Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.requiredSize(size * 108 / 72))
         }
     }
 
-    @Test fun icone() {
+    @Test @Config(qualifiers = "+night")
+    fun icone() {
         compose.setContent {
             Column(Modifier.background(Color(0xFF2A2A2E)).padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
@@ -71,7 +73,7 @@ class IconPreviewTest {
     }
 
     /** Ícone de 512×512 da Play Store: quadrado cheio, a loja aplica a máscara. */
-    @Test @Config(qualifiers = "w512dp-h512dp-mdpi")
+    @Test @Config(qualifiers = "w512dp-h512dp-notnight-mdpi")
     fun iconePlay() {
         compose.setContent { Masked(512.dp, androidx.compose.ui.graphics.RectangleShape) }
         compose.onRoot().captureRoboImage("build/screenshots/play-icon-512.png")
@@ -85,5 +87,29 @@ class IconPreviewTest {
             }
         }
         compose.onRoot().captureRoboImage("build/screenshots/icones-pequenos.png")
+    }
+
+    /** O ícone segue o tema do sistema: values (claro) e values-night (escuro). */
+    @Composable
+    private fun Temas() {
+        Row(Modifier.background(Color(0xFF2A2A2E)).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            Masked(216.dp, CircleShape)
+            Masked(216.dp, RoundedCornerShape(48.dp))
+            Masked(72.dp, CircleShape)
+            Masked(48.dp, CircleShape)
+            Masked(32.dp, CircleShape)
+        }
+    }
+
+    @Test @Config(qualifiers = "+night")
+    fun temaEscuro() {
+        compose.setContent { Temas() }
+        compose.onRoot().captureRoboImage("build/screenshots/icone-tema-escuro.png")
+    }
+
+    @Test @Config(qualifiers = "+notnight")
+    fun temaClaro() {
+        compose.setContent { Temas() }
+        compose.onRoot().captureRoboImage("build/screenshots/icone-tema-claro.png")
     }
 }
