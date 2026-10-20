@@ -29,7 +29,7 @@ object Devotion {
         ),
         DevotionStep(
             "Orar", 60,
-            "Abra e amoleça o coração, esvazie-se diante dEle. Diga ao Senhor que você O ama.",
+            "Abra e amoleça o coração, esvazie-se diante Dele. Diga ao Senhor que você O ama.",
             "2Co 3:16; Sl 62:8",
         ),
         DevotionStep(

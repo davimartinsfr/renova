@@ -118,8 +118,8 @@ fun SettingsScreen(onTutorial: () -> Unit = {}, onBack: () -> Unit) {
 
             SectionTitle("7 minutos com o Senhor")
             ListRow(
-                "Bloquear até fazer",
-                subtitle = "Os apps das regras ficam bloqueados até os 7 minutos do dia",
+                "Bloquear apps até terminar",
+                subtitle = "Os apps das suas regras ficam bloqueados até você terminar o tempo com o Senhor.",
                 divider = false,
             ) {
                 Switch(checked = devotionEnabled, onCheckedChange = { on ->
@@ -133,7 +133,7 @@ fun SettingsScreen(onTutorial: () -> Unit = {}, onBack: () -> Unit) {
             SectionTitle("Leitura")
             Column {
                 ListRow(
-                    "Ir para um capítulo",
+                    "Mudar o próximo capítulo",
                     subtitle = position?.let { "Próximo: ${Bible.title(it)}" },
                     onClick = { picking = true },
                 )

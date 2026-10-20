@@ -143,7 +143,7 @@ private fun StepContent(step: OnboardingStep, permissions: PermissionState) {
             }
             Title("Menos tela, mais Bíblia")
             Body(
-                "O Renova limita o Shorts, o Reels e os apps que você escolher. Quando o tempo acaba, " +
+                "O Renova limita o YouTube Shorts, o Instagram Reels e outros apps que você escolher. Quando o tempo acaba, " +
                     "o app para, e você libera mais tempo lendo a Bíblia.",
             )
         }
@@ -170,7 +170,7 @@ private fun StepContent(step: OnboardingStep, permissions: PermissionState) {
         }
         OnboardingStep.BATTERY -> {
             Title("Segundo plano")
-            Body("Para o Android não desligar o bloqueio, permita que o Renova rode em segundo plano.")
+            Body("Para o bloqueio funcionar sempre, permita que o Renova rode em segundo plano.")
             if (permissions.batteryOk) Granted()
         }
         OnboardingStep.NOTIFICATIONS -> {
