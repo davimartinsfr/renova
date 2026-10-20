@@ -50,7 +50,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: encolhe, otimiza e ofusca o DEX; tira recursos que nada usa.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
         }
     }
