@@ -41,7 +41,7 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     private var rules: List<Rule> = emptyList()
     private var devotionDoneDay: String? = null
-    private var devotionEnabled = true
+    private var devotionEnabled = false
     private var unlockUntil = 0L
     private var usageDate = LocalDate.now().toString()
     private val usage = mutableMapOf<String, Long>()

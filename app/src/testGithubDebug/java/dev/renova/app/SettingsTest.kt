@@ -12,7 +12,10 @@ import dev.renova.app.data.AppStore
 import dev.renova.app.data.ThemeMode
 import dev.renova.app.data.ThemePrefs
 import dev.renova.app.domain.BiblePosition
+import androidx.compose.ui.test.onLast
 import dev.renova.app.ui.AppTheme
+import dev.renova.app.ui.HomeScreen
+import dev.renova.app.ui.HomeTab
 import dev.renova.app.ui.SettingsScreen
 import dev.renova.app.ui.chosenDarkTheme
 import kotlinx.coroutines.flow.first
@@ -58,12 +61,31 @@ class SettingsTest {
     }
 
     @Test fun turningDevotionOffWorksAfterReading() {
-        runBlocking { store.grantUnlock(dev.renova.app.domain.UnlockOption.CHAPTER) }
+        runBlocking { store.setDevotionEnabled(true); store.grantUnlock(dev.renova.app.domain.UnlockOption.CHAPTER) }
         compose.setContent { AppTheme { SettingsScreen {} } }
         compose.onNode(androidx.compose.ui.test.isToggleable()).performClick()
         compose.waitUntil(5_000) { !runBlocking { store.devotionEnabled.first() } }
         compose.onNode(androidx.compose.ui.test.isToggleable()).performClick()
         compose.waitUntil(5_000) { runBlocking { store.devotionEnabled.first() } }
+    }
+
+    @Test fun devotionStartsOffAndNoticeTurnsItOn() {
+        runBlocking { store.clearDevotion() }
+        assertEquals(false, runBlocking { store.devotionEnabled.first() })
+        // Fazer os 7 minutos sem ativar não liga o bloqueio.
+        runBlocking { store.setDevotionDone("2026-10-20") }
+        assertEquals(false, runBlocking { store.devotionEnabled.first() })
+        compose.setContent { AppTheme { HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {}) } }
+        compose.waitUntil(5_000) { compose.onAllNodes(androidx.compose.ui.test.hasText("tempo com o Senhor", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(androidx.compose.ui.test.hasText("Ativar")).onLast().performClick()
+        compose.waitUntil(5_000) { runBlocking { store.devotionEnabled.first() } }
+    }
+
+    @Test fun earlierUsersKeepDevotionOn() {
+        runBlocking { store.clearDevotion(); store.setDevotionDoneRaw("2026-10-19") }
+        assertEquals(true, runBlocking { store.devotionEnabled.first() })
+        runBlocking { store.setDevotionDone("2026-10-20") }
+        assertEquals(true, runBlocking { store.devotionEnabled.first() })
     }
 
     @Test fun themeOverridesSystem() {

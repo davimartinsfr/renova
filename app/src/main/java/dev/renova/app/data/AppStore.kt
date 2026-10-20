@@ -69,10 +69,25 @@ class AppStore private constructor(context: Context) {
     /** Dia (ver [Devotion.dayKey]) em que os 7 minutos foram feitos pela última vez. */
     val devotionDoneDay: Flow<String?> = store.data.map { it[Keys.DEVOTION_DONE_DAY] }
 
-    suspend fun setDevotionDone(dayKey: String) = store.edit { it[Keys.DEVOTION_DONE_DAY] = dayKey }
+    suspend fun setDevotionDone(dayKey: String) = store.edit {
+        // Grava a escolha atual antes, para fazer os 7 minutos não ligar o bloqueio (ver devotionEnabled).
+        if (it[Keys.DEVOTION_ENABLED] == null) it[Keys.DEVOTION_ENABLED] = it[Keys.DEVOTION_DONE_DAY] != null
+        it[Keys.DEVOTION_DONE_DAY] = dayKey
+    }
 
-    /** Se os 7 minutos com o Senhor bloqueiam os apps das regras até serem feitos (ligado por padrão). */
-    val devotionEnabled: Flow<Boolean> = store.data.map { it[Keys.DEVOTION_ENABLED] ?: true }
+    /** Apaga o estado dos 7 minutos, como numa instalação nova. Só para testes. */
+    @VisibleForTesting
+    suspend fun clearDevotion() = store.edit { it.remove(Keys.DEVOTION_ENABLED); it.remove(Keys.DEVOTION_DONE_DAY) }
+
+    /** Grava o dia feito como as versões anteriores gravavam, sem fixar a escolha. Só para testes. */
+    @VisibleForTesting
+    suspend fun setDevotionDoneRaw(dayKey: String) = store.edit { it[Keys.DEVOTION_DONE_DAY] = dayKey }
+
+    /**
+     * Se os 7 minutos com o Senhor bloqueiam os apps das regras até serem feitos. Vem desligado;
+     * quem já fez os 7 minutos numa versão anterior, quando o bloqueio era sempre ligado, continua com ele.
+     */
+    val devotionEnabled: Flow<Boolean> = store.data.map { it[Keys.DEVOTION_ENABLED] ?: (it[Keys.DEVOTION_DONE_DAY] != null) }
 
     suspend fun setDevotionEnabled(enabled: Boolean) = store.edit { it[Keys.DEVOTION_ENABLED] = enabled }
 

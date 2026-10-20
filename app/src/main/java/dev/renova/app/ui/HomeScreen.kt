@@ -95,9 +95,8 @@ fun HomeScreen(
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
     val devotionDoneDay by store.devotionDoneDay.collectAsState(initial = null)
-    val devotionEnabled by store.devotionEnabled.collectAsState(initial = true)
-    // Com os 7 minutos desligados, a aba some e só sobra a de regras.
-    val tab = if (devotionEnabled) selectedTab else HomeTab.RULES
+    val devotionEnabled by store.devotionEnabled.collectAsState(initial = false)
+    val tab = selectedTab
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -133,7 +132,7 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (devotionEnabled) Column {
+            Column {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
                     HomeTab.entries.forEach { t ->
@@ -236,11 +235,17 @@ fun HomeScreen(
                     item {
                         DevotionTile(
                             done = devotionDone,
-                            targetCount = rules.count { it.enabled },
+                            targetCount = if (devotionEnabled) rules.count { it.enabled } else 0,
                             onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
                         )
                     }
-                    if (!devotionDone) item {
+                    if (!devotionEnabled) item {
+                        // Ligar o bloqueio é livre; desligar fica nas Configurações e pede leitura.
+                        NoticeRow(
+                            text = "Se quiser, o Renova bloqueia os apps das regras até você ter seu tempo com o Senhor",
+                            action = "Ativar",
+                        ) { scope.launch { store.setDevotionEnabled(true) } }
+                    } else if (!devotionDone) item {
                         Text(
                             "Até lá, os apps das regras ficam bloqueados.",
                             style = MaterialTheme.typography.bodyMedium,

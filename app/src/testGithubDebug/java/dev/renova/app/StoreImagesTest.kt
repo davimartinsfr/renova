@@ -159,7 +159,7 @@ class StoreImagesTest {
     }
 
     @Test fun seteMinutos() {
-        allSet()
+        allSet(); runBlocking { AppStore.get(context).setDevotionEnabled(true) }
         shot("4-sete-minutos", "Comece o dia com o Senhor") {
             HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {})
         }

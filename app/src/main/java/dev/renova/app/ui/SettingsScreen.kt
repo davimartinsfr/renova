@@ -80,7 +80,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showCredits by remember { mutableStateOf(false) }
     var showDisclosure by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
-    val devotionEnabled by store.devotionEnabled.collectAsState(initial = true)
+    val devotionEnabled by store.devotionEnabled.collectAsState(initial = false)
     var needReading by remember { mutableStateOf(false) }
 
     // Permissões mudam fora do app: reavaliadas ao voltar para a tela.
