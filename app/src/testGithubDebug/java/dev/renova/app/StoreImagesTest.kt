@@ -55,7 +55,6 @@ import dev.renova.app.ui.Fraunces
 import dev.renova.app.ui.HomeScreen
 import dev.renova.app.ui.HomeTab
 import dev.renova.app.ui.Inter
-import dev.renova.app.ui.RenovaColors
 import dev.renova.app.ui.RuleEditorScreen
 import dev.renova.app.ui.SettingsScreen
 import kotlinx.coroutines.runBlocking
@@ -99,17 +98,17 @@ class StoreImagesTest {
         repeat(12) { store.completeChapter(bible.chaptersPerBook) }
     }
 
-    /** Frase em cima e a tela do app num "celular" que sai pela borda de baixo. */
-    private fun shot(name: String, headline: String, color: Color, dark: Boolean = true, screen: @Composable () -> Unit) {
+    /** Frase em cima e a tela do app, no tema claro, num "celular" que sai pela borda de baixo, sobre o creme. */
+    private fun shot(name: String, headline: String, screen: @Composable () -> Unit) {
         compose.setContent {
             AppTheme(dark = true) {
-                Box(Modifier.fillMaxSize().background(color)) {
+                Box(Modifier.fillMaxSize().background(Color(0xFFF7F3EC))) {
                     Text(
                         headline,
                         fontFamily = Fraunces,
                         fontSize = 34.sp,
                         lineHeight = 38.sp,
-                        color = Color.White,
+                        color = Color(0xFF1C1B19),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = 52.dp, start = 28.dp, end = 28.dp),
                     )
@@ -129,7 +128,7 @@ class StoreImagesTest {
                             .clip(shape)
                             .border(10.dp, Color(0xFF0B0B0C), shape),
                     ) {
-                        AppTheme(dark = dark) {
+                        AppTheme(dark = false) {
                             Surface(color = MaterialTheme.colorScheme.background) {
                                 Box(Modifier.padding(top = 10.dp)) { screen() }
                             }
@@ -143,36 +142,36 @@ class StoreImagesTest {
 
     @Test fun regras() {
         allSet(); sampleData()
-        shot("1-regras", "Limite Shorts, Reels e apps", RenovaColors.Teal) {
+        shot("1-regras", "Limite Shorts, Reels e apps") {
             HomeScreen(HomeTab.RULES, {}, {}, {}, {})
         }
     }
 
-    @Test fun bloqueado() = shot("2-bloqueado", "Acabou o tempo? O app para.", RenovaColors.Plum) {
+    @Test fun bloqueado() = shot("2-bloqueado", "Acabou o tempo? O app para.") {
         BlockedScreen("TikTok", BlockReason.LIMIT.name, "Próximo: João 3", {}, {}, {})
     }
 
     @Test fun leitura() {
         val bible = runBlocking { Bible.load(context) }
-        shot("3-leitura", "Libere tempo lendo a Bíblia", RenovaColors.Olive) {
+        shot("3-leitura", "Libere tempo lendo a Bíblia") {
             ChapterReader(bible, BiblePosition(book = 42, chapter = 2)) {}
         }
     }
 
     @Test fun seteMinutos() {
         allSet()
-        shot("4-sete-minutos", "Comece o dia com o Senhor", RenovaColors.Mustard) {
+        shot("4-sete-minutos", "Comece o dia com o Senhor") {
             HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {})
         }
     }
 
-    @Test fun editor() = shot("5-editor", "Limite e horários do seu jeito", RenovaColors.Teal) {
+    @Test fun editor() = shot("5-editor", "Limite e horários do seu jeito") {
         RuleEditorScreen(null) {}
     }
 
     @Test fun configuracoes() {
         allSet()
-        shot("6-configuracoes", "Claro ou escuro. Sem anúncios.", Color(0xFF1B1B1E), dark = false) { SettingsScreen {} }
+        shot("6-configuracoes", "Claro ou escuro. Sem anúncios.") { SettingsScreen {} }
     }
 
     /** Imagem de destaque: o broto, o nome e a frase. As cores do broto vêm do tema do qualificador. */
