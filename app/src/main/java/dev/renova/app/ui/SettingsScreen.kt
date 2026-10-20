@@ -143,7 +143,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
                 ListRow(
                     "Recomeçar do Gênesis 1",
-                    subtitle = "Os capítulos lidos continuam contando",
                     divider = false,
                     onClick = { confirmRestart = true },
                 )
