@@ -41,6 +41,7 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     private var rules: List<Rule> = emptyList()
     private var devotionDoneDay: String? = null
+    private var devotionEnabled = true
     private var unlockUntil = 0L
     private var usageDate = LocalDate.now().toString()
     private val usage = mutableMapOf<String, Long>()
@@ -59,6 +60,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         scope.launch { store.rules.collect { rules = it } }
         scope.launch { store.unlockUntil.collect { unlockUntil = it } }
         scope.launch { store.devotionDoneDay.collect { devotionDoneDay = it } }
+        scope.launch { store.devotionEnabled.collect { devotionEnabled = it } }
         scope.launch {
             usage.putAll(store.usage.first().today())
             usageLoaded = true
@@ -134,7 +136,7 @@ class BlockerAccessibilityService : AccessibilityService() {
      */
     private fun blockFor(target: ActiveTarget): Pair<Rule, BlockReason>? {
         val now = LocalDateTime.now()
-        if (!Devotion.isDone(devotionDoneDay, now)) {
+        if (devotionEnabled && !Devotion.isDone(devotionDoneDay, now)) {
             rules.firstOrNull { RuleEngine.matches(it, target) }?.let { return it to BlockReason.DEVOTION }
         }
         val unlocked = unlockUntil > System.currentTimeMillis()

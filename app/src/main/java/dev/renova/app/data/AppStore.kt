@@ -1,7 +1,9 @@
 package dev.renova.app.data
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -41,6 +43,7 @@ class AppStore private constructor(context: Context) {
         val CHAPTERS_READ = intPreferencesKey("chapters_read")
         val EDIT_UNLOCK_UNTIL = longPreferencesKey("edit_unlock_until")
         val DEVOTION_DONE_DAY = stringPreferencesKey("devotion_done_day")
+        val DEVOTION_ENABLED = booleanPreferencesKey("devotion_enabled")
         val UPDATE = stringPreferencesKey("update")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
@@ -67,6 +70,11 @@ class AppStore private constructor(context: Context) {
     val devotionDoneDay: Flow<String?> = store.data.map { it[Keys.DEVOTION_DONE_DAY] }
 
     suspend fun setDevotionDone(dayKey: String) = store.edit { it[Keys.DEVOTION_DONE_DAY] = dayKey }
+
+    /** Se os 7 minutos com o Senhor bloqueiam os apps das regras até serem feitos (ligado por padrão). */
+    val devotionEnabled: Flow<Boolean> = store.data.map { it[Keys.DEVOTION_ENABLED] ?: true }
+
+    suspend fun setDevotionEnabled(enabled: Boolean) = store.edit { it[Keys.DEVOTION_ENABLED] = enabled }
 
     val chaptersRead: Flow<Int> = store.data.map { it[Keys.CHAPTERS_READ] ?: 0 }
 
@@ -123,6 +131,10 @@ class AppStore private constructor(context: Context) {
     suspend fun isUnlocked(): Boolean = unlockUntil.first() > System.currentTimeMillis()
 
     suspend fun isUnlockedForEdits(): Boolean = editUnlockUntil.first() > System.currentTimeMillis()
+
+    /** Os testes de UI dividem esta instância: zera a janela de edição deixada por um teste anterior. */
+    @VisibleForTesting
+    internal suspend fun clearEditUnlock() = store.edit { it.remove(Keys.EDIT_UNLOCK_UNTIL) }
 
     suspend fun grantUnlock(option: UnlockOption): Long {
         var until = 0L

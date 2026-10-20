@@ -82,7 +82,7 @@ class BlockedActivity : ComponentActivity() {
         lifecycleScope.launch {
             val store = AppStore.get(this@BlockedActivity)
             val resolved = if (intent.getStringExtra(EXTRA_REASON) == BlockReason.DEVOTION.name) {
-                Devotion.isDone(store.devotionDoneDay.first(), LocalDateTime.now())
+                !store.devotionEnabled.first() || Devotion.isDone(store.devotionDoneDay.first(), LocalDateTime.now())
             } else {
                 store.isUnlocked()
             }

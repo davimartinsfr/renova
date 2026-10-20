@@ -80,7 +80,7 @@ import java.time.LocalDateTime
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    tab: HomeTab,
+    selectedTab: HomeTab,
     onTabChange: (HomeTab) -> Unit,
     onEditRule: (String) -> Unit,
     onNewRule: () -> Unit,
@@ -95,6 +95,9 @@ fun HomeScreen(
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
     val devotionDoneDay by store.devotionDoneDay.collectAsState(initial = null)
+    val devotionEnabled by store.devotionEnabled.collectAsState(initial = true)
+    // Com os 7 minutos desligados, a aba some e só sobra a de regras.
+    val tab = if (devotionEnabled) selectedTab else HomeTab.RULES
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -130,7 +133,7 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Column {
+            if (devotionEnabled) Column {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
                     HomeTab.entries.forEach { t ->

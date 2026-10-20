@@ -49,6 +49,23 @@ class SettingsTest {
         compose.waitUntil(5_000) { runBlocking { store.biblePosition.first() } == BiblePosition(0, 0, 0) }
     }
 
+    @Test fun turningDevotionOffAsksForReading() {
+        runBlocking { store.setDevotionEnabled(true); store.clearEditUnlock() }
+        compose.setContent { AppTheme { SettingsScreen {} } }
+        compose.onNode(androidx.compose.ui.test.isToggleable()).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(androidx.compose.ui.test.hasText("Isso afrouxa o bloqueio")).fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(true, runBlocking { store.devotionEnabled.first() })
+    }
+
+    @Test fun turningDevotionOffWorksAfterReading() {
+        runBlocking { store.grantUnlock(dev.renova.app.domain.UnlockOption.CHAPTER) }
+        compose.setContent { AppTheme { SettingsScreen {} } }
+        compose.onNode(androidx.compose.ui.test.isToggleable()).performClick()
+        compose.waitUntil(5_000) { !runBlocking { store.devotionEnabled.first() } }
+        compose.onNode(androidx.compose.ui.test.isToggleable()).performClick()
+        compose.waitUntil(5_000) { runBlocking { store.devotionEnabled.first() } }
+    }
+
     @Test fun themeOverridesSystem() {
         var dark: Boolean? = null
         var system: Boolean? = null

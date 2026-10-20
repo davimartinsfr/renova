@@ -47,14 +47,14 @@ fun UnlockOptionsDialog(onDismiss: () -> Unit, onPick: (UnlockOption) -> Unit) {
 
 /** Pede a leitura de capítulos antes de uma mudança que afrouxa o bloqueio. */
 @Composable
-fun LooseningDialog(onDismiss: () -> Unit) {
+fun LooseningDialog(action: String = "mudar esta regra", onDismiss: () -> Unit) {
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Isso afrouxa o bloqueio") },
         text = {
             Text(
-                "Leia ${UnlockOption.CHAPTER.reading} para mudar esta regra. " +
+                "Leia ${UnlockOption.CHAPTER.reading} para $action. " +
                     "Depois você tem ${UnlockOption.CHAPTER.duration} para alterar, com os apps livres.",
             )
         },

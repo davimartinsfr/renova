@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,6 +80,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showCredits by remember { mutableStateOf(false) }
     var showDisclosure by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
+    val devotionEnabled by store.devotionEnabled.collectAsState(initial = true)
+    var needReading by remember { mutableStateOf(false) }
 
     // Permissões mudam fora do app: reavaliadas ao voltar para a tela.
     var resumeTick by remember { mutableIntStateOf(0) }
@@ -132,6 +135,20 @@ fun SettingsScreen(onBack: () -> Unit) {
                         icon = {},
                     ) { Text(m.label, style = MaterialTheme.typography.labelLarge) }
                 }
+            }
+
+            SectionTitle("7 minutos com o Senhor")
+            ListRow(
+                "Bloquear até fazer",
+                subtitle = "Os apps das regras ficam bloqueados até os 7 minutos do dia",
+                divider = false,
+            ) {
+                Switch(checked = devotionEnabled, onCheckedChange = { on ->
+                    scope.launch {
+                        // Ligar é livre; desligar afrouxa o bloqueio e pede leitura, como afrouxar uma regra.
+                        if (on || store.isUnlockedForEdits()) store.setDevotionEnabled(on) else needReading = true
+                    }
+                })
             }
 
             SectionTitle("Leitura")
@@ -206,6 +223,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Cancelar") } },
         )
     }
+    if (needReading) LooseningDialog("desligar os 7 minutos") { needReading = false }
     if (showCredits) {
         AlertDialog(
             onDismissRequest = { showCredits = false },
