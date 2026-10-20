@@ -44,7 +44,7 @@ class SettingsTest {
     @Test fun restartGoesToGenesis() {
         runBlocking { store.setPosition(42, 5) }
         compose.setContent { AppTheme { SettingsScreen {} } }
-        compose.onNodeWithText("Recomeçar do Gênesis 1").performScrollTo().performClick()
+        compose.onNodeWithText("Recomeçar de Gênesis 1").performScrollTo().performClick()
         compose.onNodeWithText("Recomeçar").performClick()
         compose.waitUntil(5_000) { runBlocking { store.biblePosition.first() } == BiblePosition(0, 0, 0) }
     }

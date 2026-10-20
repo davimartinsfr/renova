@@ -142,7 +142,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     onClick = { picking = true },
                 )
                 ListRow(
-                    "Recomeçar do Gênesis 1",
+                    "Recomeçar de Gênesis 1",
                     divider = false,
                     onClick = { confirmRestart = true },
                 )
