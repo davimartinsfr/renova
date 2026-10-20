@@ -228,13 +228,9 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
                             onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
                         )
                     }
-                    item {
+                    if (!devotionDone) item {
                         Text(
-                            if (devotionDone) {
-                                "O bloqueio dos 7 minutos volta às ${Devotion.DAY_STARTS_AT_HOUR}h."
-                            } else {
-                                "Até lá, os apps das regras ficam bloqueados. O dia recomeça às ${Devotion.DAY_STARTS_AT_HOUR}h."
-                            },
+                            "Até lá, os apps das regras ficam bloqueados.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
