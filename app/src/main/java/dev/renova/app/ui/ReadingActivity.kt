@@ -93,6 +93,7 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
     var done by rememberSaveable { mutableIntStateOf(0) }
     var unlockedUntil by rememberSaveable { mutableStateOf(0L) }
     val goal = option.chapters
+    val screenScope = rememberCoroutineScope()
 
     suspend fun finishReading() {
         unlockedUntil = store.grantUnlock(option)
@@ -106,7 +107,7 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
                 label = when {
                     unlockedUntil > 0 -> null
                     goal == 0 -> "1 versículo · ${option.duration}"
-                    else -> "Capítulo ${done + 1} de $goal"
+                    else -> "Capítulo ${minOf(done + 1, goal)} de $goal"
                 },
                 navIcon = Icons.Default.Close,
                 navLabel = "Fechar",
@@ -126,9 +127,14 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
                 // key(pos): cada capítulo ganha estado novo (rolagem, cronômetro).
                 else -> key(pos) {
                     ChapterReader(b, pos) {
-                        store.completeChapter(b.chaptersPerBook)
-                        done++
-                        if (done >= goal) finishReading()
+                        // Roda no escopo da tela: avançar a posição descarta este ChapterReader e
+                        // cancelaria o escopo dele no meio, antes de mostrar a tela final.
+                        screenScope.launch {
+                            done++
+                            // Libera antes de avançar, para a tela final entrar no lugar do capítulo lido.
+                            if (done >= goal) finishReading()
+                            store.completeChapter(b.chaptersPerBook)
+                        }.join()
                     }
                 }
             }

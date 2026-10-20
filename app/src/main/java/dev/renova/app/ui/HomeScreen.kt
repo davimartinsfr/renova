@@ -333,7 +333,7 @@ private fun StatusTile(
         subtitle = "Próximo: ${Bible.title(position)} · $chaptersRead capítulos lidos$rounds",
         action = when {
             !unlocked -> UNLOCK_BUTTON_LABEL
-            editsAllowed -> "Você pode afrouxar regras agora"
+            editsAllowed -> "Você pode editar suas regras livremente"
             else -> null
         },
         onClick = if (unlocked) null else ({ choosing = true }),
