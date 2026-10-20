@@ -7,18 +7,22 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -121,9 +125,11 @@ internal fun BlockedScreen(
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 24.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                Icon(painterResource(R.drawable.ic_hourglass), null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(16.dp))
-                Text(label, style = MaterialTheme.typography.displayMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Hourglass(Modifier.height(52.dp))
+                    Spacer(Modifier.width(16.dp))
+                    Text(label, style = MaterialTheme.typography.displayMedium)
+                }
                 Spacer(Modifier.height(10.dp))
                 Text(
                     when (reason) {
@@ -153,5 +159,14 @@ internal fun BlockedScreen(
             Spacer(Modifier.height(8.dp))
             QuietButton("Voltar", onClick = onLeave, modifier = Modifier.fillMaxWidth())
         }
+    }
+}
+
+/** Ampulheta em duas cores: vidro na cor do texto, areia no ocre. */
+@Composable
+private fun Hourglass(modifier: Modifier = Modifier) {
+    Box(modifier.aspectRatio(60f / 82f)) {
+        Icon(painterResource(R.drawable.ic_hourglass_frame), null, Modifier.matchParentSize(), tint = MaterialTheme.colorScheme.onBackground)
+        Icon(painterResource(R.drawable.ic_hourglass_sand), null, Modifier.matchParentSize(), tint = MaterialTheme.colorScheme.primary)
     }
 }

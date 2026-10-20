@@ -81,7 +81,6 @@ class IconPreviewTest {
         compose.setContent {
             Row(Modifier.background(Color(0xFF141416)).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 androidx.compose.material3.Icon(painterResource(R.drawable.ic_notification), null, Modifier.size(24.dp), tint = Color.White)
-                androidx.compose.material3.Icon(painterResource(R.drawable.ic_hourglass), null, Modifier.size(48.dp), tint = Color(0xFFC8913F))
                 androidx.compose.material3.Icon(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.size(108.dp), tint = Color.White)
             }
         }

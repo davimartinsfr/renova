@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Areia da ampulheta, no mesmo enquadramento de ic_hourglass_frame.
+     Ampulheta: "Hourglass" de Rahmad romadoni, Noun Project (CC BY 3.0). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="41dp"
+    android:viewportWidth="60"
+    android:viewportHeight="82">
+    <group
+        android:translateX="-20"
+        android:translateY="-9">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M45.711,43.808 C41.621,41.769 38.699,39.160 36.633,35.699 C45.555,36.007 49.121,34.308 52.582,32.668 C55.660,31.207 58.582,29.816 65.723,30.257 C63.782,36.648 60.223,40.847 54.293,43.808 C52.145,44.879 50.805,47.047 50.805,49.449 V55.890 C50.805,58.261 52.156,60.468 54.246,61.511 C61.867,65.312 65.726,71.273 67.035,81.332 L32.969,81.328 C34.278,71.269 38.141,65.308 45.758,61.508 C47.848,60.468 49.200,58.258 49.200,55.886 V49.445 C49.192,47.051 47.860,44.879 45.711,43.808 Z" />
+    </group>
+</vector>

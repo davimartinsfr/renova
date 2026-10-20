@@ -53,3 +53,8 @@ Guarde `keystore/` e `keystore.properties`: sem eles, futuras versões não inst
 ## Limitações
 - Ainda é possível desativar a acessibilidade ou desinstalar o app pelas configurações do Android — o app avisa na tela inicial quando o serviço está desligado.
 - A detecção do Shorts e da barra de endereço usa IDs internos dos apps (`service/TargetDetector.kt`); se uma atualização do YouTube/navegador quebrar a detecção, ajuste os IDs lá.
+
+## Créditos
+
+- Fontes Fraunces e Inter (SIL Open Font License).
+- Ampulheta da tela de bloqueio: "Hourglass" de Rahmad romadoni, [Noun Project](https://thenounproject.com/icon/hourglass-8314367/) (CC BY 3.0).
