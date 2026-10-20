@@ -278,8 +278,7 @@ internal fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit
             Text(
                 "O Renova lê a tela pelo serviço de acessibilidade para saber qual app está aberto e reconhecer " +
                     "Shorts, Reels e sites no navegador. Assim ele conta o tempo e aplica suas regras.\n\n" +
-                    "Nada do que aparece na tela é guardado ou enviado.\n\n" +
-                    "Na tela seguinte, toque em Renova e ative. Em alguns celulares, ele fica em Apps instalados.",
+                    "Nada do que aparece na tela é guardado ou enviado.",
             )
         },
         confirmButton = { TextButton(onClick = onAccept) { Text("Concordo, ativar") } },
