@@ -18,10 +18,11 @@ regra exige uma liberação por capítulos — o versículo avulso não vale par
 
 ## 7 minutos com o Senhor
 
-Se você ativar o aviso na aba dos 7 minutos, todos os apps das regras ativas ficam bloqueados todo dia até
-você fazer os **7 minutos com o Senhor** (o dia recomeça às 4h), mesmo fora do horário de bloqueio ou dentro
-do limite. O bloqueio vem desligado; para desligá-lo depois, é preciso ler um capítulo, nas Configurações. As liberações por leitura não
-valem para isso. São sete etapas guiadas, cada
+O Renova pode bloquear todos os apps das regras ativas todo dia até você fazer os **7 minutos com o
+Senhor** (o dia recomeça às 4h), mesmo fora do horário de bloqueio ou dentro do limite. As liberações por
+leitura não pulam esse bloqueio. Ele vem desligado: para ligar, toque em "Ativar" na aba dos 7 minutos ou use
+"Bloquear até fazer" nas Configurações. Desligar pede a leitura de um capítulo. Quem já fazia os 7 minutos
+antes da v1.10 continua com o bloqueio ligado. São sete etapas guiadas, cada
 uma com seu tempo, que avançam sozinhas com um aviso sonoro (o tempo pausa fora do app):
 
 | Etapa | Tempo |

@@ -133,7 +133,7 @@ private fun DevotionScreen(onClose: () -> Unit) {
 }
 
 @Composable
-private fun Intro(onStart: () -> Unit) {
+internal fun Intro(onStart: () -> Unit) {
     Column(Modifier.fillMaxSize().navigationBarsPadding().padding(horizontal = 20.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Sete etapas", style = MaterialTheme.typography.displaySmall)

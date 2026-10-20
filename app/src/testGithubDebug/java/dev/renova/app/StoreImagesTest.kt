@@ -55,6 +55,7 @@ import dev.renova.app.ui.Fraunces
 import dev.renova.app.ui.HomeScreen
 import dev.renova.app.ui.HomeTab
 import dev.renova.app.ui.Inter
+import dev.renova.app.ui.Intro
 import dev.renova.app.ui.RuleEditorScreen
 import dev.renova.app.ui.SettingsScreen
 import kotlinx.coroutines.runBlocking
@@ -158,11 +159,8 @@ class StoreImagesTest {
         }
     }
 
-    @Test fun seteMinutos() {
-        allSet(); runBlocking { AppStore.get(context).setDevotionEnabled(true) }
-        shot("4-sete-minutos", "Comece o dia com o Senhor") {
-            HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {})
-        }
+    @Test fun seteMinutos() = shot("4-sete-minutos", "Comece o dia com o Senhor") {
+        Box(Modifier.padding(top = 32.dp)) { Intro {} }
     }
 
     @Test fun editor() = shot("5-editor", "Limite e horários do seu jeito") {

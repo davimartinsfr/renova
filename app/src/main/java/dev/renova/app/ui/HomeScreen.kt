@@ -74,6 +74,7 @@ import dev.renova.app.domain.Rule
 import dev.renova.app.domain.RuleEngine
 import dev.renova.app.service.BlockerAccessibilityService
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
@@ -94,8 +95,9 @@ fun HomeScreen(
     val position by store.biblePosition.collectAsState(initial = BiblePosition())
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
-    val devotionDoneDay by store.devotionDoneDay.collectAsState(initial = null)
-    val devotionEnabled by store.devotionEnabled.collectAsState(initial = false)
+    // Nulo até o DataStore carregar, para a aba dos 7 minutos não piscar o estado errado.
+    val devotion by remember { store.devotionEnabled.combine(store.devotionDoneDay) { on, day -> on to day } }
+        .collectAsState(initial = null)
     val tab = selectedTab
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
@@ -230,8 +232,9 @@ fun HomeScreen(
                         }
                     }
                 }
-                HomeTab.DEVOTION -> {
+                HomeTab.DEVOTION -> devotion?.let { (devotionEnabled, devotionDoneDay) ->
                     val devotionDone = Devotion.isDone(devotionDoneDay, LocalDateTime.now())
+                    val hasTargets = rules.any { it.enabled }
                     item {
                         DevotionTile(
                             done = devotionDone,
@@ -245,7 +248,7 @@ fun HomeScreen(
                             text = "Se quiser, o Renova bloqueia os apps das regras até você ter seu tempo com o Senhor",
                             action = "Ativar",
                         ) { scope.launch { store.setDevotionEnabled(true) } }
-                    } else if (!devotionDone) item {
+                    } else if (!devotionDone && hasTargets) item {
                         Text(
                             "Até lá, os apps das regras ficam bloqueados.",
                             style = MaterialTheme.typography.bodyMedium,
