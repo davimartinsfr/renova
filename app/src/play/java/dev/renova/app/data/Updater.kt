@@ -6,5 +6,7 @@ import android.content.Context
 object Updater {
     suspend fun checkIfDue(context: Context, intervalMs: Long) = Unit
 
+    suspend fun check(context: Context) = Unit
+
     suspend fun downloadAndInstall(context: Context, update: AvailableUpdate) = Unit
 }

@@ -13,6 +13,7 @@ import dev.renova.app.ui.AppTheme
 import dev.renova.app.ui.HomeScreen
 import dev.renova.app.ui.HomeTab
 import dev.renova.app.ui.RuleEditorScreen
+import dev.renova.app.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,9 +25,19 @@ class MainActivity : ComponentActivity() {
                 var editing by rememberSaveable { mutableStateOf<String?>(null) }
                 // Fica aqui (e não na tela inicial) para a aba sobreviver à ida ao editor de regra.
                 var tab by rememberSaveable { mutableStateOf(HomeTab.RULES) }
+                var settings by rememberSaveable { mutableStateOf(false) }
                 val current = editing
-                if (current == null) {
-                    HomeScreen(tab, onTabChange = { tab = it }, onEditRule = { editing = it }, onNewRule = { editing = "" })
+                if (settings) {
+                    BackHandler { settings = false }
+                    SettingsScreen(onBack = { settings = false })
+                } else if (current == null) {
+                    HomeScreen(
+                        tab,
+                        onTabChange = { tab = it },
+                        onEditRule = { editing = it },
+                        onNewRule = { editing = "" },
+                        onSettings = { settings = true },
+                    )
                 } else {
                     BackHandler { editing = null }
                     RuleEditorScreen(ruleId = current.ifEmpty { null }, onDone = { editing = null })

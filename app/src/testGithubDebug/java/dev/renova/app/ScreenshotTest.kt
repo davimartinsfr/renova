@@ -23,6 +23,7 @@ import dev.renova.app.ui.HomeTab
 import dev.renova.app.ui.PrayReading
 import dev.renova.app.ui.RuleEditorScreen
 import dev.renova.app.ui.Running
+import dev.renova.app.ui.SettingsScreen
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule as JUnitRule
 import org.junit.Test
@@ -53,9 +54,11 @@ class ScreenshotTest {
         store.saveRule(Rule("3", TargetType.APP, "com.reddit.frontpage", "Reddit", schedules = listOf(Schedule(startMin = 22 * 60, endMin = 7 * 60))))
     }
 
-    @Test fun regrasEscuro() { sampleRules(); shot("regras", true) { HomeScreen(HomeTab.RULES, {}, {}, {}) } }
-    @Test fun regrasClaro() { sampleRules(); shot("regras", false) { HomeScreen(HomeTab.RULES, {}, {}, {}) } }
-    @Test fun seteMinutosEscuro() { sampleRules(); shot("sete-minutos", true) { HomeScreen(HomeTab.DEVOTION, {}, {}, {}) } }
+    @Test fun regrasEscuro() { sampleRules(); shot("regras", true) { HomeScreen(HomeTab.RULES, {}, {}, {}, {}) } }
+    @Test fun regrasClaro() { sampleRules(); shot("regras", false) { HomeScreen(HomeTab.RULES, {}, {}, {}, {}) } }
+    @Test fun seteMinutosEscuro() { sampleRules(); shot("sete-minutos", true) { HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {}) } }
+    @Test fun configuracoesEscuro() = shot("configuracoes", true) { SettingsScreen {} }
+    @Test fun configuracoesClaro() = shot("configuracoes", false) { SettingsScreen {} }
     @Test fun editorEscuro() = shot("editor", true) { RuleEditorScreen(null) {} }
     @Test fun editorClaro() = shot("editor", false) { RuleEditorScreen(null) {} }
 

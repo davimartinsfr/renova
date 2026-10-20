@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -31,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -77,7 +79,13 @@ import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String) -> Unit, onNewRule: () -> Unit) {
+fun HomeScreen(
+    tab: HomeTab,
+    onTabChange: (HomeTab) -> Unit,
+    onEditRule: (String) -> Unit,
+    onNewRule: () -> Unit,
+    onSettings: () -> Unit,
+) {
     val context = LocalContext.current
     val store = remember { AppStore.get(context) }
     val rules by store.rules.collectAsState(initial = emptyList())
@@ -151,7 +159,9 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
         ) {
             item {
                 when (tab) {
-                    HomeTab.RULES -> PageHeader("Renova", "Transformai-vos pela renovação da vossa mente.", "Rm 12:2")
+                    HomeTab.RULES -> PageHeader("Renova", "Transformai-vos pela renovação da vossa mente.", "Rm 12:2") {
+                        IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Configurações") }
+                    }
                     HomeTab.DEVOTION -> PageHeader("7 minutos com o Senhor", "Provai e vede que o Senhor é bom.", "Sl 34:8")
                 }
             }
@@ -212,14 +222,6 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
                             }
                         }
                     }
-                    item {
-                        Text(
-                            "v${BuildConfig.VERSION_NAME}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 16.dp),
-                        )
-                    }
                 }
                 HomeTab.DEVOTION -> {
                     val devotionDone = Devotion.isDone(devotionDoneDay, LocalDateTime.now())
@@ -254,7 +256,7 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
 
 /** Divulgação exigida pela Play Store antes de o usuário ativar o serviço de acessibilidade. */
 @Composable
-private fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit) {
+internal fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Acessibilidade") },
@@ -296,7 +298,7 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     DEVOTION("7 minutos", SunIcon),
 }
 
-private fun requestIgnoreBattery(context: Context) {
+internal fun requestIgnoreBattery(context: Context) {
     // A Play Store não aceita a permissão de pedir a isenção direto: lá abrimos a lista de apps.
     if (BuildConfig.PLAY_STORE) {
         context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))

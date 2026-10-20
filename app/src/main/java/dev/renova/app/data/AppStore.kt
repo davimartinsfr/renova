@@ -137,6 +137,12 @@ class AppStore private constructor(context: Context) {
         return until
     }
 
+    /** Muda o próximo capítulo do plano (base 0). Mantém voltas e capítulos lidos. */
+    suspend fun setPosition(book: Int, chapter: Int) = store.edit { p ->
+        p[Keys.BIBLE_BOOK] = book
+        p[Keys.BIBLE_CHAPTER] = chapter
+    }
+
     /** Marca o capítulo atual como lido e avança para o próximo. */
     suspend fun completeChapter(chaptersPerBook: List<Int>) = store.edit { p ->
         val next = Reading.next(p.position(), chaptersPerBook)

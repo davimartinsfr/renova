@@ -54,9 +54,18 @@ import kotlinx.coroutines.launch
 
 /** Título grande em serifa com um versículo curto embaixo: a abertura de cada tela. */
 @Composable
-fun PageHeader(title: String, verse: String? = null, ref: String? = null, modifier: Modifier = Modifier) {
+fun PageHeader(
+    title: String,
+    verse: String? = null,
+    ref: String? = null,
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
+) {
     Column(modifier.padding(top = 24.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, style = MaterialTheme.typography.displayMedium)
+        Row(verticalAlignment = Alignment.Top) {
+            Text(title, style = MaterialTheme.typography.displayMedium, modifier = Modifier.weight(1f))
+            action?.invoke()
+        }
         if (verse != null) {
             val muted = MaterialTheme.colorScheme.onSurfaceVariant
             Text(
