@@ -33,6 +33,10 @@ internal fun openAccessibilitySettings(context: Context) {
     context.startActivity(intent)
 }
 
+/** Na Play, o botão abre a página do app; esta é a opção que conta como liberado. */
+internal val BATTERY_HINT: String? =
+    if (BuildConfig.PLAY_STORE) "Toque em Bateria ou Uso da bateria do app e escolha Sem restrições." else null
+
 private fun appDetails(context: Context) =
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
 

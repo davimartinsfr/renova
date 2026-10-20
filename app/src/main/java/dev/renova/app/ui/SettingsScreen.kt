@@ -168,7 +168,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             SectionTitle("Permissões")
             Column {
                 PermissionRow("Acessibilidade", serviceOn, divider = true) { showDisclosure = true }
-                PermissionRow("Segundo plano", batteryOk, divider = true) { requestIgnoreBattery(context) }
+                PermissionRow("Segundo plano", batteryOk, divider = true, hint = BATTERY_HINT) { requestIgnoreBattery(context) }
                 PermissionRow("Notificações", notifOk, divider = false) {
                     requestNotifications(context, notifLauncher)
                 }
@@ -248,8 +248,8 @@ fun SettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun PermissionRow(title: String, ok: Boolean, divider: Boolean, onFix: () -> Unit) {
-    ListRow(title, divider = divider) {
+private fun PermissionRow(title: String, ok: Boolean, divider: Boolean, hint: String? = null, onFix: () -> Unit) {
+    ListRow(title, subtitle = hint.takeUnless { ok }, divider = divider) {
         if (ok) {
             Text("Ativa", style = MaterialTheme.typography.labelLarge, color = LocalExtraColors.current.ok)
         } else {
