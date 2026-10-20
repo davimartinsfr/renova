@@ -8,10 +8,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import dev.renova.app.data.AppStore
 import dev.renova.app.data.Bible
 import dev.renova.app.domain.BiblePosition
@@ -19,6 +22,11 @@ import dev.renova.app.domain.BlockReason
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.Schedule
 import dev.renova.app.domain.TargetType
+import dev.renova.app.domain.VerseRef
+import dev.renova.app.ui.AddVerseDialog
+import dev.renova.app.ui.PrayReadSection
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import dev.renova.app.ui.AppTheme
 import dev.renova.app.ui.BlockedScreen
 import dev.renova.app.ui.ChapterReader
@@ -62,7 +70,15 @@ class ScreenshotTest {
 
     @Test fun regrasEscuro() { sampleRules(); shot("regras", true) { HomeScreen(HomeTab.RULES, {}, {}, {}, {}) } }
     @Test fun regrasClaro() { sampleRules(); shot("regras", false) { HomeScreen(HomeTab.RULES, {}, {}, {}, {}) } }
-    @Test fun seteMinutosEscuro() { sampleRules(); shot("sete-minutos", true) { HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {}) } }
+    @Test fun seteMinutosEscuro() { sampleRules(); sampleVerses(); shot("sete-minutos", true) { HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {}) } }
+    @Test fun seteMinutosClaro() { sampleRules(); sampleVerses(); shot("sete-minutos", false) { HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {}) } }
+
+    private fun sampleVerses() = runBlocking {
+        val store = AppStore.get(context)
+        store.addDevotionVerse(VerseRef(18, 23, 1, 2))
+        store.addDevotionVerse(VerseRef(42, 3, 16, 16))
+    }
+
     @Test fun tutorialClaro() = tutorial(dark = false)
     @Test fun tutorialEscuro() = tutorial(dark = true)
 
@@ -103,5 +119,45 @@ class ScreenshotTest {
         val bible = runBlocking { Bible.load(context) }
         val pray = PrayReading("Efésios 6:17-18", bible.verses(48, 5).subList(16, 18), 17)
         shot("orar-ler", true) { androidx.compose.foundation.layout.Column { Running(200, pray) } }
+    }
+}
+
+/**
+ * A caixa de adicionar trecho fica numa classe à parte: com os qualificadores de tela da [ScreenshotTest]
+ * o campo de texto dentro da caixa nunca deixa o Compose ocioso no Robolectric.
+ */
+@RunWith(AndroidJUnit4::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [35])
+class AddVerseScreenshotTest {
+    @get:JUnitRule val compose = createComposeRule()
+
+    private val context get() = ApplicationProvider.getApplicationContext<android.content.Context>()
+
+    @Test fun adicionarTrechoClaro() {
+        val bible = runBlocking { Bible.load(context) }
+        compose.setContent { AppTheme(dark = false) { AddVerseDialog(bible, emptyList(), {}, {}) } }
+        captureScreenRoboImage("build/screenshots/adicionar-trecho-claro.png")
+        // Com o campo focado, o cursor piscando nunca deixa o Compose ocioso: o relógio só anda quando o teste manda.
+        compose.mainClock.autoAdvance = false
+        compose.onNode(hasSetTextAction()).performTextInput("Sl 23:1-3")
+        compose.mainClock.advanceTimeBy(500)
+        captureScreenRoboImage("build/screenshots/adicionar-trecho-preenchido-claro.png")
+    }
+
+    @Test fun orarLerListaClaro() {
+        runBlocking {
+            val store = AppStore.get(context)
+            store.addDevotionVerse(VerseRef(18, 23, 1, 2))
+            store.addDevotionVerse(VerseRef(42, 3, 16, 16))
+        }
+        compose.setContent {
+            AppTheme(dark = false) {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(20.dp)) { PrayReadSection() }
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("build/screenshots/orar-ler-lista-claro.png")
     }
 }

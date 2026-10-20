@@ -93,3 +93,17 @@ class VerseReferenceTest {
         assertTrue(parsed.isNotEmpty())
     }
 }
+
+class DevotionVersesTest {
+    private val a = VerseRef(48, 6, 17, 18)
+    private val b = VerseRef(54, 3, 16, 16)
+    private val c = VerseRef(18, 23, 1, 2)
+
+    @Test fun mergeAppendsUserVersesAfterBuiltIn() {
+        assertEquals(listOf(a, b, c), DevotionVerses.merge(listOf(a, b), listOf(c)))
+    }
+
+    @Test fun mergeSkipsDuplicates() {
+        assertEquals(listOf(a, b, c), DevotionVerses.merge(listOf(a, b), listOf(b, c, c)))
+    }
+}

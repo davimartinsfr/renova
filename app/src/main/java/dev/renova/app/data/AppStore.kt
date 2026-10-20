@@ -14,6 +14,7 @@ import dev.renova.app.domain.Reading
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.TargetType
 import dev.renova.app.domain.UnlockOption
+import dev.renova.app.domain.VerseRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -44,6 +45,7 @@ class AppStore private constructor(context: Context) {
         val EDIT_UNLOCK_UNTIL = longPreferencesKey("edit_unlock_until")
         val DEVOTION_DONE_DAY = stringPreferencesKey("devotion_done_day")
         val DEVOTION_ENABLED = booleanPreferencesKey("devotion_enabled")
+        val DEVOTION_VERSES = stringPreferencesKey("devotion_verses")
         val UPDATE = stringPreferencesKey("update")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
@@ -90,6 +92,21 @@ class AppStore private constructor(context: Context) {
     val devotionEnabled: Flow<Boolean> = store.data.map { it[Keys.DEVOTION_ENABLED] ?: (it[Keys.DEVOTION_DONE_DAY] != null) }
 
     suspend fun setDevotionEnabled(enabled: Boolean) = store.edit { it[Keys.DEVOTION_ENABLED] = enabled }
+
+    /** Trechos de orar-ler que a pessoa acrescentou, na ordem em que foram adicionados. */
+    val devotionVerses: Flow<List<VerseRef>> = store.data.map { it.devotionVerses() }
+
+    private fun Preferences.devotionVerses(): List<VerseRef> =
+        this[Keys.DEVOTION_VERSES]?.let { json.decodeFromString<List<VerseRef>>(it) }.orEmpty()
+
+    suspend fun addDevotionVerse(ref: VerseRef) = store.edit { p ->
+        val list = p.devotionVerses()
+        if (ref !in list) p[Keys.DEVOTION_VERSES] = json.encodeToString(list + ref)
+    }
+
+    suspend fun removeDevotionVerse(ref: VerseRef) = store.edit { p ->
+        p[Keys.DEVOTION_VERSES] = json.encodeToString(p.devotionVerses() - ref)
+    }
 
     val chaptersRead: Flow<Int> = store.data.map { it[Keys.CHAPTERS_READ] ?: 0 }
 

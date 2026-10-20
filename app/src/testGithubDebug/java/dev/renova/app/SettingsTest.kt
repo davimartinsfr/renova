@@ -36,7 +36,7 @@ class SettingsTest {
 
     @Test fun jumpToChapter() {
         compose.setContent { AppTheme { SettingsScreen {} } }
-        compose.onNodeWithText("Ir para um capítulo").performClick()
+        compose.onNodeWithText("Mudar o próximo capítulo").performClick()
         compose.waitUntil(20_000) { compose.onAllNodes(androidx.compose.ui.test.hasText("Êxodo")).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Êxodo").performClick()
         compose.onNodeWithText("3").performClick()

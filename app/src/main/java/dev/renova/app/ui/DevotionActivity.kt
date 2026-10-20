@@ -56,6 +56,7 @@ import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.VerseRef
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -87,7 +88,8 @@ private fun DevotionScreen(onClose: () -> Unit) {
     var finished by rememberSaveable { mutableStateOf(false) }
     val prayReading by produceState<PrayReading?>(null) {
         val bible = Bible.load(context)
-        val ref = Devotion.pickForDay(DevotionVerses.load(context, bible), Devotion.day(LocalDateTime.now()))
+        val list = DevotionVerses.merge(DevotionVerses.load(context, bible), store.devotionVerses.first())
+        val ref = Devotion.pickForDay(list, Devotion.day(LocalDateTime.now()))
             ?: FALLBACK_VERSE
         value = PrayReading(bible.title(ref), bible.verses(ref), ref.fromVerse)
     }

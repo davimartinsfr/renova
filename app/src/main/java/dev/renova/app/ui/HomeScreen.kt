@@ -239,6 +239,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    item { PrayReadSection() }
                 }
             }
         }

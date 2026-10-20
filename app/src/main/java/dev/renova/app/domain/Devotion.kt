@@ -1,5 +1,6 @@
 package dev.renova.app.domain
 
+import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -12,6 +13,7 @@ data class DevotionStep(
 )
 
 /** Trecho para orar-ler: livro (base 0), capítulo e versículos (base 1, inclusivos). */
+@Serializable
 data class VerseRef(val book: Int, val chapter: Int, val fromVerse: Int, val toVerse: Int)
 
 object Devotion {
