@@ -1,15 +1,9 @@
 package dev.renova.app.ui
 
-import android.Manifest
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,7 +64,6 @@ import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.UnlockOption
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.RuleEngine
-import dev.renova.app.service.BlockerAccessibilityService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -103,22 +95,14 @@ fun HomeScreen(
     var downloading by remember { mutableStateOf(false) }
     var showDisclosure by remember { mutableStateOf(false) }
 
-    // Estados do sistema que mudam fora do app: reavaliados ao voltar para a tela.
-    var resumeTick by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
-        resumeTick++
         val job = scope.launch { Updater.checkIfDue(context, 15 * 60_000L) }
         onPauseOrDispose { job.cancel() }
     }
-    val serviceOn = remember(resumeTick) { BlockerAccessibilityService.isEnabled(context) }
-    val batteryOk = remember(resumeTick) {
-        context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
-    }
-    val notifOk = remember(resumeTick) {
-        Build.VERSION.SDK_INT < 33 ||
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-    }
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { resumeTick++ }
+    val permissions = rememberPermissionState()
+    val serviceOn = permissions.serviceOn
+    val batteryOk = permissions.batteryOk
+    val notifOk = permissions.notifOk
 
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -204,7 +188,7 @@ fun HomeScreen(
                     }
                     if (!notifOk) {
                         NoticeRow(text = "Permita notificações", action = "Permitir") {
-                            requestNotifications(context, notifLauncher)
+                            permissions.requestNotifications()
                         }
                     }
                 }
@@ -275,13 +259,7 @@ internal fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Acessibilidade") },
-        text = {
-            Text(
-                "O Renova lê a tela pelo serviço de acessibilidade para saber qual app está aberto e reconhecer " +
-                    "Shorts, Reels e sites no navegador. Assim ele conta o tempo e aplica suas regras.\n\n" +
-                    "Nada do que aparece na tela é guardado ou enviado.",
-            )
-        },
+        text = { Text(ACCESSIBILITY_DISCLOSURE) },
         confirmButton = { TextButton(onClick = onAccept) { Text("Concordo, ativar") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Agora não") } },
     )

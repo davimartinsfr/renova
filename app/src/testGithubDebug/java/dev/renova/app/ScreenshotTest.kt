@@ -3,6 +3,10 @@ package dev.renova.app
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
@@ -20,6 +24,8 @@ import dev.renova.app.ui.BlockedScreen
 import dev.renova.app.ui.ChapterReader
 import dev.renova.app.ui.HomeScreen
 import dev.renova.app.ui.HomeTab
+import dev.renova.app.ui.OnboardingScreen
+import dev.renova.app.ui.onboardingSteps
 import dev.renova.app.ui.PrayReading
 import dev.renova.app.ui.RuleEditorScreen
 import dev.renova.app.ui.Running
@@ -57,6 +63,19 @@ class ScreenshotTest {
     @Test fun regrasEscuro() { sampleRules(); shot("regras", true) { HomeScreen(HomeTab.RULES, {}, {}, {}, {}) } }
     @Test fun regrasClaro() { sampleRules(); shot("regras", false) { HomeScreen(HomeTab.RULES, {}, {}, {}, {}) } }
     @Test fun seteMinutosEscuro() { sampleRules(); shot("sete-minutos", true) { HomeScreen(HomeTab.DEVOTION, {}, {}, {}, {}) } }
+    @Test fun tutorialClaro() = tutorial(dark = false)
+    @Test fun tutorialEscuro() = tutorial(dark = true)
+
+    /** Um setContent só por teste: troca de passo por estado e grava um PNG de cada. */
+    private fun tutorial(dark: Boolean) {
+        var step by mutableIntStateOf(0)
+        compose.setContent { AppTheme(dark = dark) { key(step) { OnboardingScreen(initialStep = step) {} } } }
+        onboardingSteps().forEachIndexed { i, s ->
+            step = i
+            compose.waitForIdle()
+            compose.onRoot().captureRoboImage("build/screenshots/tutorial-${i + 1}-${s.name.lowercase()}-${if (dark) "escuro" else "claro"}.png")
+        }
+    }
     @Test fun configuracoesEscuro() = shot("configuracoes", true) { SettingsScreen {} }
     @Test fun configuracoesClaro() = shot("configuracoes", false) { SettingsScreen {} }
     @Test fun editorEscuro() = shot("editor", true) { RuleEditorScreen(null) {} }

@@ -1,15 +1,8 @@
 package dev.renova.app.ui
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +37,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -55,14 +47,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.renova.app.BuildConfig
 import dev.renova.app.data.AppStore
 import dev.renova.app.data.Bible
 import dev.renova.app.data.ThemeMode
 import dev.renova.app.data.ThemePrefs
 import dev.renova.app.data.Updater
-import dev.renova.app.service.BlockerAccessibilityService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -70,7 +60,7 @@ private const val PRIVACY_URL = "https://davimartinsfr.github.io/renova/privacid
 
 /** Tema, plano de leitura, permissões e informações do app. */
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onTutorial: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
     val store = remember { AppStore.get(context) }
     val scope = rememberCoroutineScope()
@@ -83,21 +73,10 @@ fun SettingsScreen(onBack: () -> Unit) {
     val devotionEnabled by store.devotionEnabled.collectAsState(initial = false)
     var needReading by remember { mutableStateOf(false) }
 
-    // Permissões mudam fora do app: reavaliadas ao voltar para a tela.
-    var resumeTick by remember { mutableIntStateOf(0) }
-    LifecycleResumeEffect(Unit) {
-        resumeTick++
-        onPauseOrDispose {}
-    }
-    val serviceOn = remember(resumeTick) { BlockerAccessibilityService.isEnabled(context) }
-    val batteryOk = remember(resumeTick) {
-        context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
-    }
-    val notifOk = remember(resumeTick) {
-        Build.VERSION.SDK_INT < 33 ||
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-    }
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { resumeTick++ }
+    val permissions = rememberPermissionState()
+    val serviceOn = permissions.serviceOn
+    val batteryOk = permissions.batteryOk
+    val notifOk = permissions.notifOk
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -170,12 +149,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                 PermissionRow("Acessibilidade", serviceOn, divider = true) { showDisclosure = true }
                 PermissionRow("Segundo plano", batteryOk, divider = true) { requestIgnoreBattery(context) }
                 PermissionRow("Notificações", notifOk, divider = false) {
-                    requestNotifications(context, notifLauncher)
+                    permissions.requestNotifications()
                 }
             }
 
             SectionTitle("Sobre")
             Column {
+                ListRow("Ver o tutorial", onClick = onTutorial)
                 ListRow("Créditos", subtitle = "Bíblia, fontes e ícones", onClick = { showCredits = true })
                 ListRow("Política de privacidade", onClick = {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))

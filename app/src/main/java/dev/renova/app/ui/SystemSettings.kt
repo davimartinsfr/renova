@@ -6,11 +6,23 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.renova.app.service.BlockerAccessibilityService
 
 /*
@@ -18,6 +30,41 @@ import dev.renova.app.service.BlockerAccessibilityService
  * interruptor final. O Android não deixa um app abrir direto o interruptor do próprio serviço de
  * acessibilidade, então lá abrimos a lista já rolada até o Renova.
  */
+
+/** Divulgação exigida pela Play Store antes de o usuário ativar o serviço de acessibilidade. */
+internal const val ACCESSIBILITY_DISCLOSURE =
+    "O Renova lê a tela pelo serviço de acessibilidade para saber qual app está aberto e reconhecer " +
+        "Shorts, Reels e sites no navegador. Assim ele conta o tempo e aplica suas regras.\n\n" +
+        "Nada do que aparece na tela é guardado ou enviado."
+
+/** Estado das três permissões, reavaliado sempre que a tela volta ao primeiro plano. */
+internal class PermissionState(
+    val serviceOn: Boolean,
+    val batteryOk: Boolean,
+    val notifOk: Boolean,
+    /** Pop-up das notificações (ou as configurações, depois de duas recusas). */
+    val requestNotifications: () -> Unit,
+)
+
+@Composable
+internal fun rememberPermissionState(): PermissionState {
+    val context = LocalContext.current
+    var tick by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        tick++
+        onPauseOrDispose {}
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    return remember(tick) {
+        PermissionState(
+            serviceOn = BlockerAccessibilityService.isEnabled(context),
+            batteryOk = context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName),
+            notifOk = Build.VERSION.SDK_INT < 33 ||
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
+            requestNotifications = { requestNotifications(context, launcher) },
+        )
+    }
+}
 
 /** Chave que o app Configurações usa para rolar até um item e destacá-lo. */
 private const val FRAGMENT_ARGS_KEY = ":settings:fragment_args_key"
