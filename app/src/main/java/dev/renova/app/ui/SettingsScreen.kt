@@ -170,7 +170,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 PermissionRow("Acessibilidade", serviceOn, divider = true) { showDisclosure = true }
                 PermissionRow("Segundo plano", batteryOk, divider = true) { requestIgnoreBattery(context) }
                 PermissionRow("Notificações", notifOk, divider = false) {
-                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    requestNotifications(context, notifLauncher)
                 }
             }
 
@@ -241,7 +241,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     if (showDisclosure) AccessibilityDisclosure(
         onAccept = {
             showDisclosure = false
-            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            openAccessibilitySettings(context)
         },
         onDismiss = { showDisclosure = false },
     )

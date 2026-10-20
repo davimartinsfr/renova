@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -204,7 +203,7 @@ fun HomeScreen(
                     }
                     if (!notifOk) {
                         NoticeRow(text = "Permita notificações", action = "Permitir") {
-                            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            requestNotifications(context, notifLauncher)
                         }
                     }
                 }
@@ -263,7 +262,7 @@ fun HomeScreen(
     if (showDisclosure) AccessibilityDisclosure(
         onAccept = {
             showDisclosure = false
-            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            openAccessibilitySettings(context)
         },
         onDismiss = { showDisclosure = false },
     )
@@ -279,7 +278,8 @@ internal fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit
             Text(
                 "O Renova lê a tela pelo serviço de acessibilidade para saber qual app está aberto e reconhecer " +
                     "Shorts, Reels e sites no navegador. Assim ele conta o tempo e aplica suas regras.\n\n" +
-                    "Nada do que aparece na tela é guardado ou enviado.",
+                    "Nada do que aparece na tela é guardado ou enviado.\n\n" +
+                    "Na tela seguinte, toque em Renova e ative. Em alguns celulares, ele fica em Apps instalados.",
             )
         },
         confirmButton = { TextButton(onClick = onAccept) { Text("Concordo, ativar") } },
@@ -311,17 +311,6 @@ private val SunIcon: ImageVector = ImageVector.Builder("Sol", 24.dp, 24.dp, 24f,
 enum class HomeTab(val label: String, val icon: ImageVector) {
     RULES("Regras", Icons.Default.Lock),
     DEVOTION("7 minutos", SunIcon),
-}
-
-internal fun requestIgnoreBattery(context: Context) {
-    // A Play Store não aceita a permissão de pedir a isenção direto: lá abrimos a lista de apps.
-    if (BuildConfig.PLAY_STORE) {
-        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-        return
-    }
-    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))
-    runCatching { context.startActivity(intent) }
-        .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
 }
 
 @Composable
