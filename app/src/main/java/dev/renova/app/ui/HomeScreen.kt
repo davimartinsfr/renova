@@ -252,7 +252,6 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    item { DevotionSteps() }
                 }
             }
         }
@@ -335,17 +334,6 @@ private fun DevotionTile(done: Boolean, targetCount: Int, onStart: () -> Unit) {
         },
         onClick = onStart,
     )
-}
-
-@Composable
-private fun DevotionSteps() {
-    Column {
-        Devotion.STEPS.forEachIndexed { i, step ->
-            ListRow(step.title, divider = i < Devotion.STEPS.lastIndex) {
-                Text(formatStepTime(step.seconds), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
 }
 
 @Composable
