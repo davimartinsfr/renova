@@ -164,7 +164,7 @@ fun HomeScreen(
                 when (tab) {
                     HomeTab.RULES -> PageHeader(
                         "Renova",
-                        "E não vos conformeis com este século, mas transformai-vos pela renovação da vossa mente.",
+                        "E não vos conformeis com este século, mas transformai-vos pela renovação da vossa mente…",
                         "Rm 12:2",
                         highlight = "transformai-vos pela renovação da vossa mente",
                     ) {
