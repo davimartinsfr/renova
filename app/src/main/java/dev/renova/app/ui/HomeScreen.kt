@@ -193,8 +193,9 @@ fun HomeScreen(
                         NoticeRow(
                             text = "Ative o Renova na acessibilidade",
                             action = "Ativar",
-                            // Configurações restritas só travam apps instalados por APK.
-                            detail = if (BuildConfig.PLAY_STORE) null else "Acinzentado? Apps › Renova › ⋮ › Permitir configurações restritas",
+                            // Configurações restritas só travam apps instalados por APK, do Android 13 em diante.
+                            detail = if (BuildConfig.PLAY_STORE || Build.VERSION.SDK_INT < 33) null else
+                                "Se não der para ativar, abra as informações do app Renova, toque nos três pontinhos e em Permitir configurações restritas.",
                             urgent = true,
                         ) { showDisclosure = true }
                     }
