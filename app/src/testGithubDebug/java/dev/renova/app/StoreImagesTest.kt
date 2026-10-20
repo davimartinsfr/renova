@@ -175,12 +175,12 @@ class StoreImagesTest {
         shot("6-configuracoes", "Claro ou escuro. Sem anúncios.", Color(0xFF1B1B1E), dark = false) { SettingsScreen {} }
     }
 
-    @Test @Config(qualifiers = "w1024dp-h500dp-night-mdpi")
-    fun destaque() {
+    /** Imagem de destaque: o broto, o nome e a frase. As cores do broto vêm do tema do qualificador. */
+    private fun feature(name: String, background: Color, title: Color, subtitle: Color) {
         compose.setContent {
             AppTheme(dark = true) {
                 Row(
-                    Modifier.fillMaxSize().background(Color(0xFF141416)).padding(horizontal = 72.dp),
+                    Modifier.fillMaxSize().background(background).padding(horizontal = 72.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                 ) {
@@ -189,18 +189,18 @@ class StoreImagesTest {
                         Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.requiredSize(260.dp * 108 / 72))
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("Renova", fontFamily = Fraunces, fontSize = 112.sp, lineHeight = 112.sp, color = Color(0xFFF2EFE9))
-                        Text(
-                            "Troque o tempo de tela pela Palavra",
-                            fontFamily = Inter,
-                            fontSize = 30.sp,
-                            lineHeight = 38.sp,
-                            color = Color(0xFFA09A90),
-                        )
+                        Text("Renova", fontFamily = Fraunces, fontSize = 112.sp, lineHeight = 112.sp, color = title)
+                        Text("Troque o tempo de tela pela Palavra", fontFamily = Inter, fontSize = 30.sp, lineHeight = 38.sp, color = subtitle)
                     }
                 }
             }
         }
-        compose.onRoot().captureRoboImage("build/screenshots/loja/destaque.png")
+        compose.onRoot().captureRoboImage("build/screenshots/loja/$name.png")
     }
+
+    @Test @Config(qualifiers = "w1024dp-h500dp-night-mdpi")
+    fun destaque() = feature("destaque", Color(0xFF141416), Color(0xFFF2EFE9), Color(0xFFA09A90))
+
+    @Test @Config(qualifiers = "w1024dp-h500dp-notnight-mdpi")
+    fun destaqueClaro() = feature("destaque-claro", Color(0xFFF7F3EC), Color(0xFF1C1B19), Color(0xFF6B665D))
 }

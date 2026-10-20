@@ -102,7 +102,7 @@ O Renova é um app de bem-estar digital que ajuda o próprio usuário a limitar 
 Prontas em `docs/play/`, geradas pelo teste `StoreImagesTest` (`./gradlew testGithubDebugUnitTest --tests '*StoreImagesTest*'`, saída em `app/build/screenshots/loja`).
 
 - **Ícone 512×512:** `docs/play/icone-512.png`
-- **Imagem de destaque 1024×500:** `docs/play/destaque-1024x500.png`
+- **Imagem de destaque 1024×500:** `docs/play/destaque-1024x500-claro.png` (fundo creme, combina com o ícone; a escura fica em `docs/play/destaque-1024x500.png`)
 - **Capturas do celular 1080×1920, nesta ordem:** `docs/play/capturas/`
   1. Regras: "Limite Shorts, Reels e apps"
   2. Bloqueio: "Acabou o tempo? O app para."
