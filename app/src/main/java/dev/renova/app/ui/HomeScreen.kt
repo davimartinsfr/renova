@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -54,7 +53,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -150,7 +152,7 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
             item {
                 when (tab) {
                     HomeTab.RULES -> PageHeader("Renova", "Transformai-vos pela renovação da vossa mente.", "Rm 12:2")
-                    HomeTab.DEVOTION -> PageHeader("7 minutos", "Provai e vede que o Senhor é bom.", "Sl 34:8")
+                    HomeTab.DEVOTION -> PageHeader("7 minutos com o Senhor", "Provai e vede que o Senhor é bom.", "Sl 34:8")
                 }
             }
             // Avisos de configuração valem para o app todo: aparecem nas duas abas.
@@ -269,9 +271,29 @@ private fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit)
 }
 
 /** Abas da tela inicial. */
+/** Solzinho da aba 7 minutos: miolo cheio e oito raios de pontas redondas, no grid de 24 dos ícones Material. */
+private val SunIcon: ImageVector = ImageVector.Builder("Sol", 24.dp, 24.dp, 24f, 24f).apply {
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(12f, 7f)
+        arcTo(5f, 5f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 12f, y1 = 17f)
+        arcTo(5f, 5f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 12f, y1 = 7f)
+        close()
+    }
+    path(stroke = SolidColor(Color.Black), strokeLineWidth = 2.2f, strokeLineCap = StrokeCap.Round) {
+        moveTo(20f, 12f); lineTo(22.5f, 12f)
+        moveTo(17.66f, 17.66f); lineTo(19.42f, 19.42f)
+        moveTo(12f, 20f); lineTo(12f, 22.5f)
+        moveTo(6.34f, 17.66f); lineTo(4.58f, 19.42f)
+        moveTo(4f, 12f); lineTo(1.5f, 12f)
+        moveTo(6.34f, 6.34f); lineTo(4.58f, 4.58f)
+        moveTo(12f, 4f); lineTo(12f, 1.5f)
+        moveTo(17.66f, 6.34f); lineTo(19.42f, 4.58f)
+    }
+}.build()
+
 enum class HomeTab(val label: String, val icon: ImageVector) {
     RULES("Regras", Icons.Default.Lock),
-    DEVOTION("7 minutos", Icons.Default.Favorite),
+    DEVOTION("7 minutos", SunIcon),
 }
 
 private fun requestIgnoreBattery(context: Context) {
