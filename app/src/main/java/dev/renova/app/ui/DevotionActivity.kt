@@ -2,6 +2,12 @@ package dev.renova.app.ui
 
 import android.media.AudioManager
 import android.media.ToneGenerator
+import kotlin.math.roundToInt
+import kotlin.math.ceil
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import android.content.Context
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -107,22 +113,18 @@ private fun DevotionScreen(onClose: () -> Unit) {
 
     if (started && !finished) {
         val lifecycle = LocalLifecycleOwner.current.lifecycle
+        val context = LocalContext.current
         LaunchedEffect(Unit) {
-            val tone = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }.getOrNull()
-            try {
-                lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                    while (elapsed < Devotion.TOTAL_SECONDS) {
-                        delay(1000)
-                        val before = Devotion.stepAt(elapsed)?.first
-                        elapsed++
-                        // Aviso sonoro curto a cada troca de etapa.
-                        if (Devotion.stepAt(elapsed)?.first != before) tone?.startTone(ToneGenerator.TONE_PROP_ACK, 200)
-                    }
-                    store.setDevotionDone(Devotion.dayKey(LocalDateTime.now()))
-                    finished = true
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (elapsed < Devotion.TOTAL_SECONDS) {
+                    delay(1000)
+                    val before = Devotion.stepAt(elapsed)?.first
+                    elapsed++
+                    // Aviso sonoro curto a cada troca de etapa, sem atrasar o cronômetro.
+                    if (Devotion.stepAt(elapsed)?.first != before) launch { playStepTone(context) }
                 }
-            } finally {
-                tone?.release()
+                store.setDevotionDone(Devotion.dayKey(LocalDateTime.now()))
+                finished = true
             }
         }
     }
@@ -225,3 +227,37 @@ private fun Finished(onClose: () -> Unit) {
 }
 
 private val FALLBACK_VERSE = VerseRef(book = 48, chapter = 6, fromVerse = 17, toVerse = 18) // Efésios 6:17-18
+
+/**
+ * Volume do aviso na faixa de alarme: 70% do volume atual dela, mas nunca menos de 10% do máximo.
+ * Devolve o nível a pôr na faixa enquanto o tom toca (null = não mexer) e o volume do tom (0–100)
+ * relativo a esse nível.
+ */
+internal fun stepToneLevel(current: Int, max: Int): Pair<Int?, Int> {
+    if (max <= 0) return null to 70
+    val currentFraction = current.toFloat() / max
+    val target = maxOf(0.7f * currentFraction, 0.1f)
+    if (currentFraction >= target) return null to (target / currentFraction * 100).roundToInt()
+    // A faixa está baixa demais para chegar a 10%: sobe só durante o tom e depois volta.
+    val raised = ceil(0.1f * max).toInt().coerceAtLeast(1)
+    return raised to (target / (raised.toFloat() / max) * 100).roundToInt().coerceAtMost(100)
+}
+
+/** Toca o aviso de troca de etapa na faixa de alarme, que soa mesmo no silencioso. */
+private suspend fun playStepTone(context: Context) {
+    val audio = context.getSystemService(AudioManager::class.java)
+    val stream = AudioManager.STREAM_ALARM
+    val current = audio.getStreamVolume(stream)
+    val (raised, percent) = stepToneLevel(current, audio.getStreamMaxVolume(stream))
+    if (raised != null) runCatching { audio.setStreamVolume(stream, raised, 0) }
+    val tone = runCatching { ToneGenerator(stream, percent) }.getOrNull()
+    try {
+        tone?.startTone(ToneGenerator.TONE_PROP_ACK, 200)
+        delay(400)
+    } finally {
+        withContext(NonCancellable) {
+            tone?.release()
+            if (raised != null) runCatching { audio.setStreamVolume(stream, current, 0) }
+        }
+    }
+}

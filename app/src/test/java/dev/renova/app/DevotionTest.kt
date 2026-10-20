@@ -4,6 +4,7 @@ import dev.renova.app.data.Bible
 import dev.renova.app.data.DevotionVerses
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.VerseRef
+import dev.renova.app.ui.stepToneLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -44,6 +45,21 @@ class DevotionTest {
         assertEquals(picks.take(3).toSet(), list.toSet())
         assertEquals(picks.take(3), picks.drop(3))
         assertNull(Devotion.pickForDay(emptyList<String>(), day))
+    }
+}
+
+class StepToneTest {
+    @Test fun seventyPercentOfAlarmVolume() {
+        assertEquals(null to 70, stepToneLevel(15, 15))
+        assertEquals(null to 70, stepToneLevel(7, 15))
+    }
+
+    @Test fun neverBelowTenPercentOfMax() {
+        // 70% de 2/15 daria 9%: sobe para 10% do máximo sem mexer na faixa.
+        assertEquals(null to 75, stepToneLevel(2, 15))
+        // Faixa abaixo de 10%: sobe a faixa só durante o tom.
+        assertEquals(2 to 75, stepToneLevel(1, 15))
+        assertEquals(1 to 70, stepToneLevel(0, 7))
     }
 }
 
