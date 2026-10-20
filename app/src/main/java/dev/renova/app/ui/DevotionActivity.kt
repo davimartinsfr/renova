@@ -1,18 +1,15 @@
 package dev.renova.app.ui
 
-import android.media.AudioManager
-import android.media.ToneGenerator
-import kotlin.math.roundToInt
-import kotlin.math.ceil
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.NonCancellable
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,7 +17,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,10 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -52,13 +48,19 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import dev.renova.app.R
 import dev.renova.app.data.AppStore
 import dev.renova.app.data.Bible
 import dev.renova.app.data.DevotionVerses
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.VerseRef
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 /**
  * "7 minutos com o Senhor": as sete etapas em sequência, cada uma com seu tempo.
@@ -230,7 +232,7 @@ private val FALLBACK_VERSE = VerseRef(book = 48, chapter = 6, fromVerse = 17, to
 
 /**
  * Volume do aviso na faixa de alarme: 70% do volume atual dela, mas nunca menos de 10% do máximo.
- * Devolve o nível a pôr na faixa enquanto o tom toca (null = não mexer) e o volume do tom (0–100)
+ * Devolve o nível a pôr na faixa enquanto o toque soa (null = não mexer) e o volume do toque (0–100)
  * relativo a esse nível.
  */
 internal fun stepToneLevel(current: Int, max: Int): Pair<Int?, Int> {
@@ -238,25 +240,38 @@ internal fun stepToneLevel(current: Int, max: Int): Pair<Int?, Int> {
     val currentFraction = current.toFloat() / max
     val target = maxOf(0.7f * currentFraction, 0.1f)
     if (currentFraction >= target) return null to (target / currentFraction * 100).roundToInt()
-    // A faixa está baixa demais para chegar a 10%: sobe só durante o tom e depois volta.
+    // A faixa está baixa demais para chegar a 10%: sobe só durante o toque e depois volta.
     val raised = ceil(0.1f * max).toInt().coerceAtLeast(1)
     return raised to (target / (raised.toFloat() / max) * 100).roundToInt().coerceAtMost(100)
 }
 
-/** Toca o aviso de troca de etapa na faixa de alarme, que soa mesmo no silencioso. */
+/** Toca o toque de troca de etapa (res/raw/step_chime) na faixa de alarme, que soa mesmo no silencioso. */
 private suspend fun playStepTone(context: Context) {
     val audio = context.getSystemService(AudioManager::class.java)
     val stream = AudioManager.STREAM_ALARM
     val current = audio.getStreamVolume(stream)
     val (raised, percent) = stepToneLevel(current, audio.getStreamMaxVolume(stream))
     if (raised != null) runCatching { audio.setStreamVolume(stream, raised, 0) }
-    val tone = runCatching { ToneGenerator(stream, percent) }.getOrNull()
+    val player = runCatching {
+        MediaPlayer.create(
+            context,
+            R.raw.step_chime,
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build(),
+            audio.generateAudioSessionId(),
+        )
+    }.getOrNull()
     try {
-        tone?.startTone(ToneGenerator.TONE_PROP_ACK, 200)
-        delay(400)
+        if (player != null) {
+            player.setVolume(percent / 100f, percent / 100f)
+            player.start()
+            delay(player.duration.toLong() + 200)
+        }
     } finally {
         withContext(NonCancellable) {
-            tone?.release()
+            player?.release()
             if (raised != null) runCatching { audio.setStreamVolume(stream, current, 0) }
         }
     }
