@@ -159,7 +159,12 @@ fun HomeScreen(
         ) {
             item {
                 when (tab) {
-                    HomeTab.RULES -> PageHeader("Renova", "Transformai-vos pela renovação da vossa mente.", "Rm 12:2") {
+                    HomeTab.RULES -> PageHeader(
+                        "Renova",
+                        "E não vos conformeis com este século, mas transformai-vos pela renovação da vossa mente, " +
+                            "para que experimenteis qual seja a boa, agradável e perfeita vontade de Deus.",
+                        "Rm 12:2",
+                    ) {
                         IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Configurações") }
                     }
                     HomeTab.DEVOTION -> PageHeader("7 minutos com o Senhor", "Provai e vede que o Senhor é bom.", "Sl 34:8")
