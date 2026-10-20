@@ -39,7 +39,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -117,107 +118,123 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
     val today = usage.today()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Renova") },
-                actions = {
-                    Text("v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 16.dp))
-                },
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar {
-                HomeTab.entries.forEach { t ->
-                    NavigationBarItem(
-                        selected = tab == t,
-                        onClick = { onTabChange(t) },
-                        icon = { Icon(t.icon, null) },
-                        label = { Text(t.label) },
-                    )
+            Column {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
+                    HomeTab.entries.forEach { t ->
+                        NavigationBarItem(
+                            selected = tab == t,
+                            onClick = { onTabChange(t) },
+                            icon = { Icon(t.icon, null) },
+                            label = { Text(t.label, style = MaterialTheme.typography.labelMedium) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                                selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = Color.Transparent,
+                            ),
+                        )
+                    }
                 }
-            }
-        },
-        floatingActionButton = {
-            if (tab == HomeTab.RULES) {
-                ExtendedFloatingActionButton(onClick = onNewRule, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Nova regra") })
             }
         },
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, if (tab == HomeTab.RULES) 96.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(20.dp, 16.dp, 20.dp, 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                when (tab) {
+                    HomeTab.RULES -> PageHeader("Renova", "Sede transformados pela renovação do vosso entendimento.", "Rm 12:2")
+                    HomeTab.DEVOTION -> PageHeader("7 minutos", "Provai, e vede que o Senhor é bom.", "Sl 34:8")
+                }
+            }
             // Avisos de configuração valem para o app todo: aparecem nas duas abas.
-            update?.let { u ->
-                item {
-                    SetupCard(
-                        title = "Atualização disponível: v${u.version}",
-                        text = u.notes.ifBlank { "Uma nova versão foi publicada." } +
-                            "\n\nSuas regras e o progresso da leitura são mantidos.",
-                        action = if (downloading) "Baixando…" else "Atualizar",
-                    ) {
-                        if (!downloading) scope.launch {
-                            downloading = true
-                            runCatching { Updater.downloadAndInstall(context, u) }
-                                .onFailure { Toast.makeText(context, "Falha ao baixar: ${it.message}", Toast.LENGTH_LONG).show() }
-                            downloading = false
+            if (update != null || !serviceOn || !batteryOk || !notifOk) item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    update?.let { u ->
+                        NoticeRow(
+                            text = "Nova versão: v${u.version}",
+                            action = if (downloading) "Baixando…" else "Atualizar",
+                        ) {
+                            if (!downloading) scope.launch {
+                                downloading = true
+                                runCatching { Updater.downloadAndInstall(context, u) }
+                                    .onFailure { Toast.makeText(context, "Falha ao baixar: ${it.message}", Toast.LENGTH_LONG).show() }
+                                downloading = false
+                            }
+                        }
+                    }
+                    if (!serviceOn) {
+                        NoticeRow(
+                            text = "Ative o Renova na acessibilidade",
+                            action = "Ativar",
+                            // Configurações restritas só travam apps instalados por APK.
+                            detail = if (BuildConfig.PLAY_STORE) null else "Acinzentado? Apps › Renova › ⋮ › Permitir configurações restritas",
+                            urgent = true,
+                        ) { showDisclosure = true }
+                    }
+                    if (!batteryOk) {
+                        NoticeRow(text = "Permita rodar em segundo plano", action = "Permitir") { requestIgnoreBattery(context) }
+                    }
+                    if (!notifOk) {
+                        NoticeRow(text = "Permita notificações", action = "Permitir") {
+                            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
                     }
                 }
-            }
-            if (!serviceOn) item {
-                SetupCard(
-                    title = "Bloqueio desativado",
-                    text = "Ative o serviço de acessibilidade “Renova”. Se a opção estiver acinzentada (Android 13+): " +
-                        "Configurações › Apps › Renova › ⋮ › Permitir configurações restritas.",
-                    action = "Abrir acessibilidade",
-                    urgent = true,
-                ) { showDisclosure = true }
-            }
-            if (!batteryOk) item {
-                SetupCard(
-                    title = "Otimização de bateria",
-                    text = "Permita rodar em segundo plano para o Android não desligar o bloqueio.",
-                    action = "Permitir",
-                ) { requestIgnoreBattery(context) }
-            }
-            if (!notifOk) item {
-                SetupCard(
-                    title = "Notificações",
-                    text = "Mostra quanto tempo falta para o desbloqueio acabar.",
-                    action = "Permitir",
-                ) { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
             }
             when (tab) {
                 HomeTab.RULES -> {
                     item {
-                        ReadingCard(position, chaptersRead, unlocked, editUnlockUntil > now, unlockUntil - now) { option ->
+                        StatusTile(position, chaptersRead, unlocked, editUnlockUntil > now, unlockUntil - now) { option ->
                             context.startReading(option)
                         }
                     }
-                    item {
-                        Text("Regras", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-                    }
+                    item { SectionTitle("Regras", onAdd = onNewRule, addLabel = "Nova regra") }
                     if (rules.isEmpty()) item {
                         Text(
-                            "Nenhuma regra ainda. Toque em “Nova regra” para bloquear o YouTube Shorts, o Reddit ou qualquer app.",
+                            "Nenhuma regra. Toque em + para criar.",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    items(rules, key = { it.id }) { rule ->
-                        RuleCard(rule, today[rule.id] ?: 0L, unlocked) { onEditRule(rule.id) }
+                    item {
+                        Column {
+                            rules.forEachIndexed { i, rule ->
+                                RuleRow(rule, today[rule.id] ?: 0L, unlocked, divider = i < rules.lastIndex) { onEditRule(rule.id) }
+                            }
+                        }
+                    }
+                    item {
+                        Text(
+                            "v${BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
                     }
                 }
                 HomeTab.DEVOTION -> {
                     item {
-                        DevotionCard(
+                        DevotionTile(
                             done = Devotion.isDone(devotionDoneDay, LocalDateTime.now()),
                             targetCount = rules.count { it.enabled },
                             onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
                         )
                     }
-                    item { DevotionStepsCard() }
+                    item {
+                        Text(
+                            "Até lá, os apps das regras ficam bloqueados. O dia recomeça às ${Devotion.DAY_STARTS_AT_HOUR}h.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    item { DevotionSteps() }
                 }
             }
         }
@@ -237,14 +254,12 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
 private fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Uso da acessibilidade") },
+        title = { Text("Acessibilidade") },
         text = {
             Text(
-                "O Renova usa o serviço de acessibilidade do Android para saber qual app está aberto e ler o " +
-                    "conteúdo da tela só o suficiente para reconhecer o YouTube Shorts, o Reels do Instagram e o " +
-                    "endereço dos sites abertos no navegador.\n\n" +
-                    "Com isso ele conta o tempo de uso e bloqueia o que você escolheu limitar nas suas regras. " +
-                    "Nada do que aparece na tela é guardado, enviado ou compartilhado: tudo fica no aparelho.",
+                "O Renova lê a tela pelo serviço de acessibilidade para saber qual app está aberto e reconhecer " +
+                    "Shorts, Reels e sites no navegador. Assim ele conta o tempo e aplica suas regras.\n\n" +
+                    "Nada do que aparece na tela é guardado ou enviado.",
             )
         },
         confirmButton = { TextButton(onClick = onAccept) { Text("Concordo, ativar") } },
@@ -270,73 +285,33 @@ private fun requestIgnoreBattery(context: Context) {
 }
 
 @Composable
-private fun SetupCard(title: String, text: String, action: String, urgent: Boolean = false, onClick: () -> Unit) {
-    Card(
-        colors = if (urgent) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer) else CardDefaults.cardColors(),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(text, style = MaterialTheme.typography.bodyMedium)
-            Button(onClick = onClick) { Text(action) }
-        }
-    }
+private fun DevotionTile(done: Boolean, targetCount: Int, onStart: () -> Unit) {
+    Tile(
+        color = RenovaColors.Plum,
+        title = if (done) "Feito hoje" else "Começar",
+        subtitle = when {
+            done -> "Toque para fazer de novo"
+            targetCount == 1 -> "1 regra aguardando"
+            targetCount > 1 -> "$targetCount regras aguardando"
+            else -> "Ainda não feito hoje"
+        },
+        onClick = onStart,
+    )
 }
 
 @Composable
-private fun DevotionCard(done: Boolean, targetCount: Int, onStart: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-        Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("7 minutos com o Senhor", style = MaterialTheme.typography.titleLarge)
-            val apps = if (targetCount == 1) "1 regra" else "$targetCount regras"
-            Text(
-                when {
-                    done -> "Feito hoje. ✓"
-                    targetCount == 0 -> "Ainda não feito hoje."
-                    else -> "Ainda não feito hoje: $apps aguardando."
-                },
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            if (done) OutlinedButton(onClick = onStart) { Text("Fazer de novo") } else Button(onClick = onStart) { Text("Começar") }
-        }
-    }
-}
-
-@Composable
-private fun DevotionStepsCard() {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Como funciona", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Até você fazer os 7 minutos, os apps das regras ativas ficam bloqueados, e as liberações por " +
-                    "leitura não valem. O dia recomeça às 4h.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Devotion.STEPS.forEachIndexed { i, step ->
-                Row {
-                    Text("${i + 1}. ${step.title}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text(
-                        formatStepTime(step.seconds),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+private fun DevotionSteps() {
+    Column {
+        Devotion.STEPS.forEachIndexed { i, step ->
+            ListRow(step.title, divider = i < Devotion.STEPS.lastIndex) {
+                Text(formatStepTime(step.seconds), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
-private fun formatStepTime(seconds: Int): String {
-    val m = seconds / 60
-    val s = seconds % 60
-    return when {
-        m == 0 -> "$s s"
-        s == 0 -> "$m min"
-        else -> "$m min $s s"
-    }
-}
-
 @Composable
-private fun ReadingCard(
+private fun StatusTile(
     position: BiblePosition,
     chaptersRead: Int,
     unlocked: Boolean,
@@ -351,54 +326,44 @@ private fun ReadingCard(
             onRead(option)
         }
     }
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-        Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (unlocked) {
-                Text("Desbloqueado por ${formatCountdown(remainingMs)}", style = MaterialTheme.typography.titleLarge)
-                if (editsAllowed) {
-                    Text("Durante o desbloqueio você também pode afrouxar ou apagar regras.", style = MaterialTheme.typography.bodySmall)
-                }
-            } else {
-                Text("Bloqueios ativos", style = MaterialTheme.typography.titleLarge)
-            }
-            Text("Próximo capítulo: ${Bible.title(position)}", style = MaterialTheme.typography.bodyLarge)
-            val roundsText = if (position.rounds > 0) " · ${position.rounds}ª volta completa" else ""
-            Text("$chaptersRead capítulos lidos$roundsText", style = MaterialTheme.typography.bodySmall)
-            if (!unlocked) {
-                OutlinedButton(onClick = { choosing = true }) { Text(UNLOCK_BUTTON_LABEL) }
-            }
-        }
-    }
+    val rounds = if (position.rounds > 0) " · ${position.rounds}ª volta" else ""
+    Tile(
+        color = RenovaColors.Teal,
+        title = if (unlocked) "Livre · ${formatCountdown(remainingMs)}" else "Bloqueios ativos",
+        subtitle = "Próximo: ${Bible.title(position)} · $chaptersRead capítulos lidos$rounds",
+        action = when {
+            !unlocked -> UNLOCK_BUTTON_LABEL
+            editsAllowed -> "Você pode afrouxar regras agora"
+            else -> null
+        },
+        onClick = if (unlocked) null else ({ choosing = true }),
+    )
 }
 
 @Composable
-private fun RuleCard(rule: Rule, usedSeconds: Long, unlocked: Boolean, onClick: () -> Unit) {
+private fun RuleRow(rule: Rule, usedSeconds: Long, unlocked: Boolean, divider: Boolean, onClick: () -> Unit) {
     val reason = RuleEngine.blockReason(rule, usedSeconds, LocalDateTime.now(), unlocked)
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(rule.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                val (status, color) = when {
-                    !rule.enabled -> "Desativada" to MaterialTheme.colorScheme.outline
-                    reason != null -> "Bloqueado" to MaterialTheme.colorScheme.error
-                    else -> "Liberado" to Color(0xFF2E7D32)
-                }
-                Text(status, color = color, style = MaterialTheme.typography.labelLarge)
-            }
-            Text(
-                rule.typeLabel(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            val limit = rule.dailyLimitMin
-            Text(
-                if (limit != null) "Hoje: ${formatDuration(usedSeconds)} de ${formatDuration(limit * 60L)}"
-                else "Hoje: ${formatDuration(usedSeconds)} · sem limite diário",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            rule.schedules.forEach {
-                Text("Bloqueado: ${it.describe()}", style = MaterialTheme.typography.bodySmall)
+    val limit = rule.dailyLimitMin
+    val summary = buildList {
+        when {
+            limit == 0 -> add("Sempre bloqueado")
+            limit != null -> {
+                val used = formatDuration(usedSeconds)
+                val total = formatDuration(limit * 60L)
+                // "5 de 15 min hoje" em vez de "5 min de 15 min hoje".
+                val usedShort = if (used.endsWith(" min") && total.endsWith(" min")) used.removeSuffix(" min") else used
+                add("$usedShort de $total hoje")
             }
         }
+        rule.schedules.forEach { add(it.describe()) }
+        if (limit == null) add("${formatDuration(usedSeconds)} hoje")
+    }.joinToString(" · ")
+    ListRow(rule.label, summary, divider = divider, onClick = onClick) {
+        val (status, color) = when {
+            !rule.enabled -> "Desativada" to MaterialTheme.colorScheme.onSurfaceVariant
+            reason != null -> "Bloqueado" to MaterialTheme.colorScheme.error
+            else -> "Livre" to LocalExtraColors.current.ok
+        }
+        Text(status, color = color, style = MaterialTheme.typography.labelMedium)
     }
 }

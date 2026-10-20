@@ -14,12 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
@@ -54,7 +53,7 @@ class BlockedActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 val position by store.biblePosition.collectAsState(initial = null)
-                val nextReading = position?.let { "Próximo capítulo: ${Bible.title(it)}" }
+                val nextReading = position?.let { "Próximo: ${Bible.title(it)}" }
                 BlockedScreen(
                     label = intent.getStringExtra(EXTRA_LABEL).orEmpty(),
                     reason = intent.getStringExtra(EXTRA_REASON),
@@ -103,7 +102,7 @@ class BlockedActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun BlockedScreen(
+internal fun BlockedScreen(
     label: String,
     reason: String?,
     nextReading: String?,
@@ -119,43 +118,40 @@ private fun BlockedScreen(
             onRead(option)
         }
     }
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-        Column(
-            Modifier.fillMaxSize().padding(32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(Icons.Default.Lock, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(16.dp))
-            Text("$label bloqueado", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                when (reason) {
-                    BlockReason.LIMIT.name -> "Você atingiu o limite de hoje."
-                    BlockReason.DEVOTION.name -> "Antes, seus 7 minutos com o Senhor de hoje."
-                    else -> "Este é um horário de bloqueio."
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(40.dp))
-            if (devotion) {
-                // As liberações por leitura não valem aqui: só os 7 minutos soltam estes alvos.
-                Button(onClick = onDevotion, modifier = Modifier.fillMaxWidth()) { Text("Começar os 7 minutos") }
-            } else {
-                Button(onClick = { choosing = true }, modifier = Modifier.fillMaxWidth()) { Text(UNLOCK_BUTTON_LABEL) }
-            }
-            if (nextReading != null && !devotion) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 24.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                Icon(Icons.Default.Lock, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(16.dp))
+                Text(label, style = MaterialTheme.typography.displayMedium)
+                Spacer(Modifier.height(10.dp))
                 Text(
-                    nextReading,
-                    style = MaterialTheme.typography.bodySmall,
+                    when (reason) {
+                        BlockReason.LIMIT.name -> "Limite de hoje atingido."
+                        BlockReason.DEVOTION.name -> "Faça antes os 7 minutos de hoje."
+                        else -> "Horário de bloqueio."
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(onClick = onLeave, modifier = Modifier.fillMaxWidth()) { Text("Voltar") }
+            if (devotion) {
+                // As liberações por leitura não valem aqui: só os 7 minutos soltam estes alvos.
+                PrimaryButton("Começar os 7 minutos", onClick = onDevotion, modifier = Modifier.fillMaxWidth())
+            } else {
+                PrimaryButton(UNLOCK_BUTTON_LABEL, onClick = { choosing = true }, modifier = Modifier.fillMaxWidth())
+                if (nextReading != null) {
+                    Text(
+                        nextReading,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            QuietButton("Voltar", onClick = onLeave, modifier = Modifier.fillMaxWidth())
         }
     }
 }

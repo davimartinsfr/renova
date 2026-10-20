@@ -25,7 +25,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -42,7 +41,11 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -110,9 +113,9 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
         val limit = if (limitOn) limitText.toIntOrNull()?.takeIf { it in 0..1440 } else null
         val normalizedTarget = if (type == TargetType.APP) target else ""
         error = when {
-            limitOn && limit == null -> "Limite diário inválido."
+            limitOn && limit == null -> "Limite inválido."
             type == TargetType.APP && normalizedTarget.isEmpty() -> "Escolha um app."
-            !limitOn && schedules.isEmpty() -> "Defina um limite diário ou ao menos um horário de bloqueio."
+            !limitOn && schedules.isEmpty() -> "Defina um limite ou um horário."
             else -> null
         }
         if (error != null) return null
@@ -142,14 +145,17 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text(if (ruleId == null) "Nova regra" else "Editar regra") },
-                navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") } },
-                actions = {
-                    if (original != null) IconButton(onClick = { commit(null) }) { Icon(Icons.Default.Delete, "Apagar") }
-                },
-            )
+            TopRow(
+                label = null,
+                navIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                navLabel = "Voltar",
+                onNav = onDone,
+                modifier = Modifier.statusBarsPadding(),
+            ) {
+                if (original != null) IconButton(onClick = { commit(null) }) { Icon(Icons.Default.Delete, "Apagar") }
+            }
         },
     ) { padding ->
         if (!loaded) {
@@ -157,71 +163,63 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             return@Scaffold
         }
         Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("O que bloquear", style = MaterialTheme.typography.titleMedium)
+            Text(if (ruleId == null) "Nova regra" else "Editar regra", style = MaterialTheme.typography.displaySmall)
             val types = listOf(TargetType.YT_SHORTS to "Shorts", TargetType.IG_REELS to "Reels", TargetType.APP to "App")
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 types.forEachIndexed { i, (t, name) ->
                     SegmentedButton(
                         selected = type == t,
                         onClick = { if (type != t) { type = t; target = ""; label = "" } },
-                        shape = SegmentedButtonDefaults.itemShape(i, types.size),
-                    ) { Text(name) }
+                        shape = SegmentedButtonDefaults.itemShape(i, types.size, MaterialTheme.shapes.small),
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.primary,
+                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                            activeBorderColor = MaterialTheme.colorScheme.primary,
+                            inactiveContainerColor = MaterialTheme.colorScheme.background,
+                            inactiveBorderColor = MaterialTheme.colorScheme.outline,
+                        ),
+                        icon = {},
+                    ) { Text(name, style = MaterialTheme.typography.labelLarge) }
                 }
             }
             when (type) {
-                TargetType.YT_SHORTS -> Text(
-                    "Bloqueia só o Shorts no app do YouTube (e youtube.com/shorts no navegador). O resto do YouTube continua liberado.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                TargetType.IG_REELS -> Text(
-                    "Bloqueia só o Reels no app do Instagram (a aba Reels e Reels abertos em tela cheia) e instagram.com/reels no navegador. " +
-                        "Feed, stories e mensagens continuam liberados.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                else -> OutlinedButton(onClick = { pickingApp = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (target.isEmpty()) "Escolher app" else "$label ($target)")
-                }
+                TargetType.YT_SHORTS -> Hint("Só o Shorts, no app e no site. O resto do YouTube continua livre.")
+                TargetType.IG_REELS -> Hint("Só o Reels, no app e no site. Feed, stories e mensagens continuam livres.")
+                else -> OutlinedButton(
+                    onClick = { pickingApp = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    shape = MaterialTheme.shapes.medium,
+                ) { Text(if (target.isEmpty()) "Escolher app" else label, style = MaterialTheme.typography.labelLarge) }
             }
 
-            HorizontalDivider()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Limite diário", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Switch(checked = limitOn, onCheckedChange = { limitOn = it })
-            }
+            Section("Limite diário", checked = limitOn, onCheckedChange = { limitOn = it })
             if (limitOn) {
                 OutlinedTextField(
                     value = limitText,
                     onValueChange = { limitText = it.filter(Char::isDigit).take(4) },
-                    label = { Text("Minutos por dia (0 = bloqueado sempre)") },
+                    label = { Text("Minutos por dia") },
+                    supportingText = { Text("0 = sempre bloqueado") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            HorizontalDivider()
-            Text("Horários de bloqueio", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Nesses horários fica bloqueado mesmo que ainda haja tempo no limite diário.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Section("Horários de bloqueio")
+            Hint("Bloqueia mesmo com tempo sobrando.")
             schedules.forEachIndexed { index, s ->
                 ScheduleCard(s, onChange = { schedules[index] = it }, onDelete = { schedules.removeAt(index) })
             }
-            OutlinedButton(onClick = { schedules.add(Schedule((1..5).toSet(), 8 * 60, 18 * 60)) }) { Text("Adicionar horário") }
+            QuietButton("Adicionar horário", icon = Icons.Default.Add, onClick = { schedules.add(Schedule((1..5).toSet(), 8 * 60, 18 * 60)) })
 
-            HorizontalDivider()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Regra ativa", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Switch(checked = enabled, onCheckedChange = { enabled = it })
-            }
+            Section("Regra ativa", checked = enabled, onCheckedChange = { enabled = it })
 
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Button(onClick = { build()?.let { commit(it) } }, modifier = Modifier.fillMaxWidth()) { Text("Salvar") }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+            PrimaryButton("Salvar", onClick = { build()?.let { commit(it) } }, modifier = Modifier.fillMaxWidth())
         }
     }
 
@@ -236,7 +234,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
         )
     }
 
-    if (needReading) LooseningDialog("Para apagar, desativar ou afrouxar uma regra") { needReading = false }
+    if (needReading) LooseningDialog { needReading = false }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -246,33 +244,57 @@ private fun ScheduleCard(s: Schedule, onChange: (Schedule) -> Unit, onDelete: ()
     fun pickTime(initial: Int, onPicked: (Int) -> Unit) {
         TimePickerDialog(context, { _, h, m -> onPicked(h * 60 + m) }, initial / 60, initial % 60, true).show()
     }
-    Card {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                DAY_LETTERS.forEachIndexed { i, letter ->
-                    val day = i + 1
-                    FilterChip(
-                        selected = day in s.days,
-                        onClick = {
-                            val days = if (day in s.days) s.days - day else s.days + day
-                            if (days.isNotEmpty()) onChange(s.copy(days = days))
-                        },
-                        label = { Text(letter) },
-                    )
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickTime(s.startMin) { onChange(s.copy(startMin = it)) } }) { Text(formatMinuteOfDay(s.startMin)) }
-                Text("até")
-                OutlinedButton(onClick = { pickTime(s.endMin) { onChange(s.copy(endMin = it)) } }) { Text(formatMinuteOfDay(s.endMin)) }
-                Box(Modifier.weight(1f))
-                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Remover horário") }
-            }
-            if (s.startMin == s.endMin) {
-                Text("Início igual ao fim = bloqueado o dia todo.", style = MaterialTheme.typography.bodySmall)
+    Column(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            DAY_LETTERS.forEachIndexed { i, letter ->
+                val day = i + 1
+                FilterChip(
+                    selected = day in s.days,
+                    onClick = {
+                        val days = if (day in s.days) s.days - day else s.days + day
+                        if (days.isNotEmpty()) onChange(s.copy(days = days))
+                    },
+                    label = { Text(letter) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                )
             }
         }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { pickTime(s.startMin) { onChange(s.copy(startMin = it)) } }, shape = MaterialTheme.shapes.small) {
+                Text(formatMinuteOfDay(s.startMin))
+            }
+            Text("até")
+            OutlinedButton(onClick = { pickTime(s.endMin) { onChange(s.copy(endMin = it)) } }, shape = MaterialTheme.shapes.small) {
+                Text(formatMinuteOfDay(s.endMin))
+            }
+            if (s.startMin == s.endMin) Text("dia todo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(Modifier.weight(1f))
+            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Remover horário") }
+        }
     }
+}
+
+/** Título de seção do editor, com um interruptor opcional à direita. */
+@Composable
+private fun Section(title: String, checked: Boolean? = null, onCheckedChange: (Boolean) -> Unit = {}) {
+    Column(Modifier.padding(top = 8.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            if (checked != null) Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -303,10 +325,11 @@ private fun AppPickerDialog(onDismiss: () -> Unit, onPick: (InstalledApp) -> Uni
                     val filtered = list.filter { it.label.contains(query, true) || it.packageName.contains(query, true) }
                     LazyColumn(Modifier.heightIn(max = 400.dp)) {
                         items(filtered, key = { it.packageName }) { app ->
-                            Column(Modifier.fillMaxWidth().clickable { onPick(app) }.padding(vertical = 10.dp)) {
-                                Text(app.label, style = MaterialTheme.typography.bodyLarge)
-                                Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            Text(
+                                app.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.fillMaxWidth().clickable { onPick(app) }.padding(vertical = 12.dp),
+                            )
                         }
                     }
                 }

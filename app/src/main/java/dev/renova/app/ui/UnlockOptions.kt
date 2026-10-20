@@ -2,14 +2,10 @@ package dev.renova.app.ui
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -18,32 +14,29 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.renova.app.domain.UnlockOption
 
-const val UNLOCK_BUTTON_LABEL = "Liberar uso de apps bloqueados"
+const val UNLOCK_BUTTON_LABEL = "Ler para liberar"
 
 /** Escolha de quanto tempo liberar e quanto ler para isso. */
 @Composable
 fun UnlockOptionsDialog(onDismiss: () -> Unit, onPick: (UnlockOption) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Liberar por quanto tempo?") },
+        title = { Text("Quanto tempo?") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                UnlockOption.entries.forEach { option ->
-                    OutlinedCard(Modifier.fillMaxWidth().clickable { onPick(option) }) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                            Text(option.duration, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Ler ${option.reading}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+            Column {
+                UnlockOption.entries.forEachIndexed { i, option ->
+                    ListRow(
+                        title = option.duration,
+                        subtitle = "Ler ${option.reading}",
+                        divider = i < UnlockOption.entries.lastIndex,
+                        onClick = { onPick(option) },
+                    )
                 }
                 Text(
-                    "Afrouxar ou apagar regras só é possível depois de ler capítulos.",
+                    "Para afrouxar regras, leia capítulos.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
                 )
             }
         },
@@ -52,17 +45,17 @@ fun UnlockOptionsDialog(onDismiss: () -> Unit, onPick: (UnlockOption) -> Unit) {
     )
 }
 
-/** Pede a leitura de capítulos antes de uma mudança que afrouxa o bloqueio. [action] completa a frase. */
+/** Pede a leitura de capítulos antes de uma mudança que afrouxa o bloqueio. */
 @Composable
-fun LooseningDialog(action: String, onDismiss: () -> Unit) {
+fun LooseningDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Isso afrouxa o bloqueio") },
         text = {
             Text(
-                "$action, leia ${UnlockOption.CHAPTER.reading} da Bíblia. " +
-                    "Depois você terá ${UnlockOption.CHAPTER.duration} para fazer a alteração (os apps também ficam liberados).",
+                "Leia ${UnlockOption.CHAPTER.reading} para mudar esta regra. " +
+                    "Depois você tem ${UnlockOption.CHAPTER.duration} para alterar, com os apps livres.",
             )
         },
         confirmButton = {

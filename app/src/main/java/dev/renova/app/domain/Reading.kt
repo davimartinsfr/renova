@@ -19,7 +19,7 @@ enum class UnlockOption(val minutes: Long, val chapters: Int) {
             else -> "${minutes / 60} horas"
         }
 
-    val reading: String get() = if (chapters == 0) "1 versículo aleatório" else Reading.chapters(chapters)
+    val reading: String get() = if (chapters == 0) "1 versículo" else Reading.chapters(chapters)
 
     /** Afrouxar regras exige ler capítulos: um versículo seria um atalho barato demais. */
     val allowsRuleEdits: Boolean get() = chapters > 0

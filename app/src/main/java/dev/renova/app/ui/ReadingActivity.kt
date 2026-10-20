@@ -20,17 +20,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -103,18 +100,18 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        when {
-                            unlockedUntil > 0 -> "Leitura concluída"
-                            goal == 0 -> "Versículo para ${option.duration}"
-                            else -> "Capítulo ${done + 1} de $goal"
-                        },
-                    )
+            TopRow(
+                label = when {
+                    unlockedUntil > 0 -> null
+                    goal == 0 -> "1 versículo · ${option.duration}"
+                    else -> "Capítulo ${done + 1} de $goal"
                 },
-                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Fechar") } },
+                navIcon = Icons.Default.Close,
+                navLabel = "Fechar",
+                onNav = onClose,
+                modifier = Modifier.statusBarsPadding(),
             )
         },
     ) { padding ->
@@ -140,7 +137,7 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
 }
 
 @Composable
-private fun ChapterReader(bible: Bible, pos: BiblePosition, onComplete: suspend () -> Unit) {
+internal fun ChapterReader(bible: Bible, pos: BiblePosition, onComplete: suspend () -> Unit) {
     val key = "${pos.rounds}:${pos.book}:${pos.chapter}"
     val verses = remember(key) { bible.verses(pos.book, pos.chapter) }
     val minSeconds = remember(key) { Reading.minSeconds(verses) }
@@ -171,42 +168,44 @@ private fun ChapterReader(bible: Bible, pos: BiblePosition, onComplete: suspend 
 
     val timeOk = elapsed >= minSeconds
     Column(Modifier.fillMaxSize()) {
-        LinearProgressIndicator(
-            progress = { (elapsed.toFloat() / minSeconds).coerceAtMost(1f) },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        ThinProgress(elapsed.toFloat() / minSeconds)
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 Text(
                     bible.title(pos.book, pos.chapter),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontFamily = FontFamily.Serif,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    style = MaterialTheme.typography.displaySmall,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
                 )
             }
             itemsIndexed(verses) { i, verse ->
                 Text(
                     buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 12.sp, baselineShift = BaselineShift.Superscript, color = MaterialTheme.colorScheme.primary)) {
-                            append("${i + 1} ")
-                        }
+                        withStyle(
+                            SpanStyle(
+                                fontFamily = Inter,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                baselineShift = BaselineShift.Superscript,
+                                color = MaterialTheme.colorScheme.primary,
+                            ),
+                        ) { append("${i + 1} ") }
                         append(verse)
                     },
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 18.sp,
-                    lineHeight = 28.sp,
+                    fontFamily = FrauncesText,
+                    fontSize = 19.sp,
+                    lineHeight = 31.sp,
                 )
             }
             item { Spacer(Modifier.height(24.dp)) }
         }
         CompleteBar(
             remainingSeconds = minSeconds - elapsed,
-            hint = if (reachedEnd) "Chegou ao fim do capítulo" else "Role até o fim do capítulo",
+            hint = if (reachedEnd) "Fim do capítulo" else "Role até o fim",
             enabled = timeOk && reachedEnd && !saving,
         ) {
             saving = true
@@ -237,20 +236,17 @@ private fun VerseReader(bible: Bible, onComplete: suspend () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        LinearProgressIndicator(
-            progress = { (elapsed.toFloat() / minSeconds).coerceAtMost(1f) },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        ThinProgress(elapsed.toFloat() / minSeconds)
         Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(32.dp),
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(28.dp),
             verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("“$text”", fontFamily = FontFamily.Serif, fontSize = 22.sp, lineHeight = 32.sp, textAlign = TextAlign.Center)
+            Text("“$text”", fontFamily = FrauncesText, fontSize = 24.sp, lineHeight = 36.sp)
             Text(
                 "${bible.title(book, chapter)}:${verse + 1}",
                 style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(top = 12.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 16.dp),
             )
         }
         CompleteBar(
@@ -266,20 +262,21 @@ private fun VerseReader(bible: Bible, onComplete: suspend () -> Unit) {
 
 @Composable
 private fun CompleteBar(remainingSeconds: Int, hint: String, enabled: Boolean, onComplete: () -> Unit) {
-    Surface(tonalElevation = 3.dp) {
+    Column(Modifier.navigationBarsPadding()) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
-            Modifier.fillMaxWidth().padding(16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (remainingSeconds <= 0) "Tempo mínimo cumprido" else "Tempo: ${formatCountdown(remainingSeconds * 1000L)} restante",
-                    style = MaterialTheme.typography.bodyMedium,
+                    if (remainingSeconds <= 0) "Tempo cumprido" else "Faltam ${formatCountdown(remainingSeconds * 1000L)}",
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Button(enabled = enabled, onClick = onComplete) { Text("Concluir") }
+            PrimaryButton("Concluir", onClick = onComplete, enabled = enabled)
         }
     }
 }
@@ -292,16 +289,18 @@ private fun Finished(until: Long, onClose: () -> Unit) {
             value = until - System.currentTimeMillis()
         }
     }
-    Column(
-        Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("“Lâmpada para os meus pés é tua palavra, e luz para o meu caminho.”", fontFamily = FontFamily.Serif, fontSize = 20.sp, textAlign = TextAlign.Center)
-        Text("Salmos 119:105", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
-        Spacer(Modifier.height(32.dp))
-        Text("Desbloqueado por ${formatCountdown(remaining)}", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onClose) { Text("Fechar") }
+    Column(Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text("Livre · ${formatCountdown(remaining)}", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(20.dp))
+            Text("“Lâmpada para os meus pés é tua palavra, e luz para o meu caminho.”", fontFamily = FrauncesText, fontSize = 22.sp, lineHeight = 32.sp)
+            Text(
+                "Salmos 119:105",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+        PrimaryButton("Fechar", onClick = onClose, modifier = Modifier.fillMaxWidth())
     }
 }

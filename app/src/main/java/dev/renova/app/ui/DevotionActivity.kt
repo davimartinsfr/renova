@@ -19,17 +19,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,7 +67,7 @@ class DevotionActivity : ComponentActivity() {
     }
 }
 
-private data class PrayReading(val title: String, val verses: List<String>, val firstVerse: Int)
+internal data class PrayReading(val title: String, val verses: List<String>, val firstVerse: Int)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,10 +85,14 @@ private fun DevotionScreen(onClose: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("7 minutos com o Senhor") },
-                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Fechar") } },
+            TopRow(
+                label = "7 minutos com o Senhor",
+                navIcon = Icons.Default.Close,
+                navLabel = "Fechar",
+                onNav = onClose,
+                modifier = Modifier.statusBarsPadding(),
             )
         },
     ) { padding ->
@@ -129,76 +130,71 @@ private fun DevotionScreen(onClose: () -> Unit) {
 
 @Composable
 private fun Intro(onStart: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            "Sete etapas, sete minutos. Cada etapa avança sozinha quando o tempo acaba (com um aviso sonoro). " +
-                "Se sair do app, o tempo pausa.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Devotion.STEPS.forEachIndexed { i, step ->
-            Row {
-                Text("${i + 1}. ${step.title}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text(formatCountdown(step.seconds * 1000L), style = MaterialTheme.typography.bodyMedium)
+    Column(Modifier.fillMaxSize().navigationBarsPadding().padding(horizontal = 20.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("Sete etapas", style = MaterialTheme.typography.displaySmall)
+            Text(
+                "Cada uma avança sozinha, com um aviso sonoro. Fora do app, o tempo pausa.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column {
+                Devotion.STEPS.forEachIndexed { i, step ->
+                    ListRow(step.title, divider = i < Devotion.STEPS.lastIndex) {
+                        Text(formatStepTime(step.seconds), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Começar") }
+        PrimaryButton("Começar", onClick = onStart, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
     }
 }
 
 @Composable
-private fun Running(elapsed: Int, prayReading: PrayReading?) {
+internal fun Running(elapsed: Int, prayReading: PrayReading?) {
     val (index, inStep) = Devotion.stepAt(elapsed) ?: (Devotion.STEPS.lastIndex to Devotion.STEPS.last().seconds)
     val step = Devotion.STEPS[index]
-    LinearProgressIndicator(
-        progress = { elapsed.toFloat() / Devotion.TOTAL_SECONDS },
-        modifier = Modifier.fillMaxWidth(),
-    )
+    ThinProgress(elapsed.toFloat() / Devotion.TOTAL_SECONDS)
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Etapa ${index + 1} de ${Devotion.STEPS.size}", style = MaterialTheme.typography.labelLarge)
-        Text(step.title, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Serif)
         Text(
-            formatCountdown((step.seconds - inStep) * 1000L),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(step.instruction, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-        if (index == Devotion.PRAY_READ_STEP && prayReading != null) {
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    prayReading.verses.forEachIndexed { i, verse ->
-                        Text(
-                            "${prayReading.firstVerse + i} $verse",
-                            fontFamily = FontFamily.Serif,
-                            fontSize = 19.sp,
-                            lineHeight = 28.sp,
-                        )
-                    }
-                    Text(prayReading.title, style = MaterialTheme.typography.labelLarge)
-                }
-            }
-        }
-        Text(
-            step.references,
-            style = MaterialTheme.typography.bodySmall,
+            "Etapa ${index + 1} de ${Devotion.STEPS.size}",
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Text(step.title, style = MaterialTheme.typography.displayMedium)
+        Text(
+            formatCountdown((step.seconds - inStep) * 1000L),
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(step.instruction, style = MaterialTheme.typography.bodyLarge)
+        if (index == Devotion.PRAY_READ_STEP && prayReading != null) {
+            Column(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainer).padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                prayReading.verses.forEachIndexed { i, verse ->
+                    Text(
+                        "${prayReading.firstVerse + i} $verse",
+                        fontFamily = FrauncesText,
+                        fontSize = 19.sp,
+                        lineHeight = 29.sp,
+                    )
+                }
+                Text(prayReading.title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Text(step.references, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Devotion.STEPS.getOrNull(index + 1)?.let { next ->
             Text(
                 "A seguir: ${next.title}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.padding(top = 12.dp),
             )
         }
     }
@@ -206,28 +202,25 @@ private fun Running(elapsed: Int, prayReading: PrayReading?) {
 
 @Composable
 private fun Finished(onClose: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            "“Provai, e vede que o Senhor é bom.”",
-            fontFamily = FontFamily.Serif,
-            fontSize = 20.sp,
-            textAlign = TextAlign.Center,
-        )
-        Text("Salmos 34:8", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
-        Spacer(Modifier.height(32.dp))
-        Text("7 minutos feitos hoje", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Os apps da lista dos 7 minutos ficam soltos até o dia virar, às ${Devotion.DAY_STARTS_AT_HOUR}h.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onClose) { Text("Fechar") }
+    Column(Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text("Feito hoje", style = MaterialTheme.typography.displayMedium)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "O bloqueio dos 7 minutos volta amanhã às ${Devotion.DAY_STARTS_AT_HOUR}h.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(28.dp))
+            Text("“Provai, e vede que o Senhor é bom.”", fontFamily = FrauncesText, fontSize = 22.sp, lineHeight = 32.sp)
+            Text(
+                "Salmos 34:8",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+        PrimaryButton("Fechar", onClick = onClose, modifier = Modifier.fillMaxWidth())
     }
 }
 

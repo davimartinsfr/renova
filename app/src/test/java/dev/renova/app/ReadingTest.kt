@@ -44,7 +44,7 @@ class UnlockOptionTest {
         assertEquals(60L to 3, UnlockOption.CHAPTERS.minutes to UnlockOption.CHAPTERS.chapters)
         assertEquals("1 minuto", UnlockOption.VERSE.duration)
         assertEquals("1 hora", UnlockOption.CHAPTERS.duration)
-        assertEquals("1 versículo aleatório", UnlockOption.VERSE.reading)
+        assertEquals("1 versículo", UnlockOption.VERSE.reading)
         assertEquals("3 capítulos", UnlockOption.CHAPTERS.reading)
     }
 
