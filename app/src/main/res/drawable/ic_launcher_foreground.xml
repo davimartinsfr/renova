@@ -1,47 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Ampulheta com broto: a areia que caiu virou um broto. A cintura fica acima do meio para o bojo
-  de baixo, onde o broto cresce, ser maior. Tudo dentro da área segura (círculo de 66dp).
--->
+<!-- Broto: caule ocre, folhas oliva clara e botão ameixa clara. Tudo dentro da área segura de 66dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:scaleX="0.8"
-        android:scaleY="0.8">
-        <!-- Vidro -->
-        <path
-            android:strokeColor="#C8913F"
-            android:strokeWidth="4.5"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M35,28 C35,41 50,45 50,50 C50,59 35,63 35,80 M73,28 C73,41 58,45 58,50 C58,59 73,63 73,80" />
-        <!-- Barras -->
-        <path
-            android:strokeColor="#C8913F"
-            android:strokeWidth="4.5"
-            android:strokeLineCap="round"
-            android:pathData="M30,28 L78,28 M30,80 L78,80" />
-        <!-- Último grão caindo -->
-        <path
-            android:fillColor="#C8913F"
-            android:pathData="M54,54 m-1.8,0 a1.8,1.8 0,1 0,3.6 0 a1.8,1.8 0,1 0,-3.6 0" />
-        <!-- Monte de areia -->
-        <path
-            android:fillColor="#C8913F"
-            android:pathData="M39.5,78 C44,72.5 64,72.5 68.5,78 Z" />
-        <!-- Broto -->
-        <path
-            android:strokeColor="#E0B66A"
-            android:strokeWidth="3.5"
-            android:strokeLineCap="round"
-            android:pathData="M54,75 L54,60" />
-        <path
-            android:fillColor="#E0B66A"
-            android:pathData="M54,70 C48,70 43.5,67.5 43.5,63.5 C49.5,63.5 54,66 54,70 Z M54,66 C59,66 61.5,63.8 61.5,60.5 C57,60.5 54,62.5 54,66 Z" />
-    </group>
+    <path
+        android:strokeColor="#C8913F"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,44 V79" />
+    <path
+        android:strokeColor="#A8708C"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,29 A8.5,8.5 0 0,0 54,44 A8.5,8.5 0 0,0 54,29 Z" />
+    <path
+        android:strokeColor="#8AA05E"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,66 A16,16 0 0,0 38,50 A16,16 0 0,0 54,66 Z M54,66 A16,16 0 0,1 70,50 A16,16 0 0,1 54,66 Z" />
 </vector>
