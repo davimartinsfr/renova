@@ -1,10 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone da barra de notificações: a ampulheta em branco (o sistema aplica a cor). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M3,6 Q7.5,4.5 11.25,6.5 L11.25,19 Q7.5,17 3,18.5 Z M12.75,6.5 Q16.5,4.5 21,6 L21,18.5 Q16.5,17 12.75,19 Z" />
+    android:viewportWidth="58"
+    android:viewportHeight="58">
+    <group
+        android:translateX="-25"
+        android:translateY="-25">
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="4.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M35,28 C35,41 50,45 50,50 C50,59 35,63 35,80 M73,28 C73,41 58,45 58,50 C58,59 73,63 73,80 M30,28 L78,28 M30,80 L78,80" />
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="3.5"
+            android:strokeLineCap="round"
+            android:pathData="M54,75 L54,60" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,54 m-1.8,0 a1.8,1.8 0,1 0,3.6 0 a1.8,1.8 0,1 0,-3.6 0 M39.5,78 C44,72.5 64,72.5 68.5,78 Z M54,70 C48,70 43.5,67.5 43.5,63.5 C49.5,63.5 54,66 54,70 Z M54,66 C59,66 61.5,63.8 61.5,60.5 C57,60.5 54,62.5 54,66 Z" />
+    </group>
 </vector>
