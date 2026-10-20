@@ -220,16 +220,21 @@ fun HomeScreen(tab: HomeTab, onTabChange: (HomeTab) -> Unit, onEditRule: (String
                     }
                 }
                 HomeTab.DEVOTION -> {
+                    val devotionDone = Devotion.isDone(devotionDoneDay, LocalDateTime.now())
                     item {
                         DevotionTile(
-                            done = Devotion.isDone(devotionDoneDay, LocalDateTime.now()),
+                            done = devotionDone,
                             targetCount = rules.count { it.enabled },
                             onStart = { context.startActivity(Intent(context, DevotionActivity::class.java)) },
                         )
                     }
                     item {
                         Text(
-                            "Até lá, os apps das regras ficam bloqueados. O dia recomeça às ${Devotion.DAY_STARTS_AT_HOUR}h.",
+                            if (devotionDone) {
+                                "O bloqueio dos 7 minutos volta às ${Devotion.DAY_STARTS_AT_HOUR}h."
+                            } else {
+                                "Até lá, os apps das regras ficam bloqueados. O dia recomeça às ${Devotion.DAY_STARTS_AT_HOUR}h."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
