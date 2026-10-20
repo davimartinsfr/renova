@@ -3,13 +3,19 @@ package dev.renova.app.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -25,6 +31,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +47,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /** Título grande em serifa com um versículo curto embaixo: a abertura de cada tela. */
 @Composable
@@ -83,7 +99,7 @@ fun Tile(
         }
         if (action != null) {
             Text(
-                "$action  →",
+                if (onClick != null) "$action  →" else action,
                 style = MaterialTheme.typography.labelLarge,
                 color = RenovaColors.OnTile,
                 modifier = Modifier.padding(top = 10.dp),
@@ -227,5 +243,63 @@ fun TopRow(
             modifier = Modifier.weight(1f).padding(start = 4.dp),
         )
         actions()
+    }
+}
+
+private val WHEEL_ROW = 44.dp
+
+/**
+ * Seletor em roda, com três linhas visíveis: o valor do meio é o escolhido. Rola com encaixe;
+ * tocar num valor também o seleciona.
+ */
+@Composable
+fun WheelPicker(
+    values: List<Int>,
+    selected: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 64.dp,
+    format: (Int) -> String = { it.toString() },
+) {
+    val initial = values.indexOf(selected).coerceAtLeast(0)
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = initial)
+    val scope = rememberCoroutineScope()
+    // Com o respiro de uma linha em cima, o item do meio é o primeiro visível (ou o seguinte, passada a metade).
+    val center by remember {
+        derivedStateOf {
+            val half = state.layoutInfo.visibleItemsInfo.firstOrNull()?.size?.div(2) ?: 0
+            (state.firstVisibleItemIndex + if (state.firstVisibleItemScrollOffset > half) 1 else 0).coerceIn(values.indices)
+        }
+    }
+    val current by rememberUpdatedState(selected)
+    val report by rememberUpdatedState(onSelected)
+    LaunchedEffect(state) {
+        snapshotFlow { state.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling && values[center] != current) report(values[center])
+        }
+    }
+    LazyColumn(
+        state = state,
+        flingBehavior = rememberSnapFlingBehavior(state),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = WHEEL_ROW),
+        modifier = modifier.width(width).height(WHEEL_ROW * 3),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        itemsIndexed(values) { i, v ->
+            Box(
+                Modifier.fillMaxWidth().height(WHEEL_ROW).clickable {
+                    scope.launch { state.animateScrollToItem(i) }
+                    onSelected(v)
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    format(v),
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    color = if (i == center) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                )
+            }
+        }
     }
 }

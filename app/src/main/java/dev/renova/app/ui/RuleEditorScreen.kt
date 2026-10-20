@@ -15,10 +15,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -50,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -58,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.renova.app.data.AppStore
 import dev.renova.app.domain.UnlockOption
@@ -87,7 +88,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     var target by remember { mutableStateOf("") }
     var label by remember { mutableStateOf("") }
     var limitOn by remember { mutableStateOf(true) }
-    var limitText by remember { mutableStateOf("15") }
+    var limitMin by remember { mutableIntStateOf(15) }
     val schedules = remember { mutableStateListOf<Schedule>() }
     var enabled by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -102,7 +103,8 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             target = r.target
             label = r.label
             limitOn = r.dailyLimitMin != null
-            limitText = (r.dailyLimitMin ?: 15).toString()
+            // O seletor anda de 5 em 5: arredonda para baixo, para nunca afrouxar sem querer.
+            limitMin = (r.dailyLimitMin ?: 15).coerceAtMost(LIMIT_MAX_MIN) / 5 * 5
             schedules.addAll(r.schedules)
             enabled = r.enabled
         }
@@ -110,10 +112,9 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     }
 
     fun build(): Rule? {
-        val limit = if (limitOn) limitText.toIntOrNull()?.takeIf { it in 0..1440 } else null
+        val limit = if (limitOn) limitMin else null
         val normalizedTarget = if (type == TargetType.APP) target else ""
         error = when {
-            limitOn && limit == null -> "Limite inválido."
             type == TargetType.APP && normalizedTarget.isEmpty() -> "Escolha um app."
             !limitOn && schedules.isEmpty() -> "Defina um limite ou um horário."
             else -> null
@@ -197,16 +198,8 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
 
             Section("Limite diário", checked = limitOn, onCheckedChange = { limitOn = it })
             if (limitOn) {
-                OutlinedTextField(
-                    value = limitText,
-                    onValueChange = { limitText = it.filter(Char::isDigit).take(4) },
-                    label = { Text("Minutos por dia") },
-                    supportingText = { Text("0 = sempre bloqueado") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                LimitPicker(limitMin, onChange = { limitMin = it })
+                if (limitMin == 0) Hint("Sempre bloqueado.")
             }
 
             Section("Horários de bloqueio")
@@ -276,6 +269,32 @@ private fun ScheduleCard(s: Schedule, onChange: (Schedule) -> Unit, onDelete: ()
             if (s.startMin == s.endMin) Text("dia todo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Box(Modifier.weight(1f))
             IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Remover horário") }
+        }
+    }
+}
+
+private const val LIMIT_MAX_MIN = 23 * 60 + 55
+
+/** Limite diário em duas rodas lado a lado: horas de 1 em 1 e minutos de 5 em 5. */
+@Composable
+private fun LimitPicker(totalMin: Int, onChange: (Int) -> Unit) {
+    val hours = totalMin / 60
+    val minutes = totalMin % 60
+    Box(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Faixa atrás da linha do meio, que marca o valor escolhido.
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(44.dp)
+                .clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            WheelPicker((0..23).toList(), hours, onSelected = { onChange(it * 60 + minutes) })
+            Text("h", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(24.dp))
+            WheelPicker((0..55 step 5).toList(), minutes, onSelected = { onChange(hours * 60 + it) }, format = { "%02d".format(it) })
+            Text("min", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
