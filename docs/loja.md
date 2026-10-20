@@ -35,7 +35,7 @@ Quando um app estiver bloqueado, escolha quanto tempo quer e leia:
 Os capítulos seguem uma leitura contínua, então, aos poucos, você lê a Bíblia inteira. Comece por Gênesis 1 ou vá para qualquer capítulo nas configurações. A leitura só conta depois de chegar ao fim do capítulo e ficar nele um tempo mínimo.
 
 7 MINUTOS COM O SENHOR
-Comece o dia com o Senhor antes das redes sociais. Os apps das suas regras ficam bloqueados até você fazer os 7 minutos guiados: invocar o nome do Senhor, orar, orar-ler a Palavra, confessar, consagrar-se, agradecer e fazer seus pedidos. Cada etapa tem seu tempo, avança sozinha e é anunciada por um toque suave.
+Comece o dia com o Senhor antes das redes sociais. Se quiser, o Renova bloqueia os apps das suas regras até você fazer os 7 minutos guiados: invocar o nome do Senhor, orar, orar-ler a Palavra, confessar, consagrar-se, agradecer e fazer seus pedidos. Cada etapa tem seu tempo, avança sozinha e é anunciada por um toque suave.
 
 DIFÍCIL DE BURLAR
 Para afrouxar ou apagar uma regra, você precisa antes ler capítulos da Bíblia. Assim, a decisão que você tomou com a cabeça fria vale também na hora da tentação.
