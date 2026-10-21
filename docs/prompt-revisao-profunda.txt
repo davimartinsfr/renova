@@ -1,0 +1,118 @@
+# Revisão profunda de funcionalidade — Renova (app Android)
+
+## Objetivo
+Revisar a fundo **{{FUNCIONALIDADE — ou "o app inteiro"}}** do Renova, clonado de github.com/davimartinsfr/renova,
+testando de verdade num emulador Android. Mapa das áreas (pacote dev.renova.app, em app/src/main/java):
+- Serviço de bloqueio: service/BlockerAccessibilityService.kt, TargetDetector.kt (Shorts/Reels/URL), BlockOverlay.kt
+- Regras e contagem: domain/Rule.kt, RuleEngine.kt, OfficialSites.kt; data/AppStore.kt (DataStore: regras, uso diário, liberações)
+- Bloqueio e leitura: ui/BlockedActivity.kt, ReadingActivity.kt, UnlockOptions.kt, domain/Reading.kt, data/Bible.kt
+- 7 minutos com o Senhor: domain/Devotion.kt, ui/DevotionActivity.kt, PrayReadList.kt, data/DevotionVerses.kt
+- Telas e permissões: ui/HomeScreen.kt, RuleEditorScreen.kt, SettingsScreen.kt, OnboardingScreen.kt, SystemSettings.kt
+- Sabores: github (data/Updater.kt, baixa e instala APK da última release) e play (src/play: Updater stub,
+  manifest sem INTERNET/instalação)
+
+Quero bugs reais, confirmados: bloqueio que não bloqueia ou que dá para burlar, tempo contado errado,
+liberação que vale mais (ou menos) do que deveria, estado inconsistente no DataStore, telas que não funcionam,
+texto da tela que não bate com o comportamento e diferença entre sabores ou versões do Android.
+Não quero comentário de estilo.
+
+## Limites (invioláveis)
+- NUNCA faça `git commit`, `git push`, `gh release`, abrir PR ou qualquer coisa que altere o GitHub.
+- Não altere o código para corrigir nada. Se precisar de um gancho temporário para testar (log, forçar um caminho),
+  faça numa branch local `revisao-tmp`, diga exatamente o que mudou e apague a branch no fim.
+- Use só emuladores criados por você para esta revisão. Não instale nada num celular físico conectado
+  (confira `adb devices` e passe sempre `-s <serial do emulador>`).
+- Não há keystore no repositório (keystore/ fica fora do git): os builds de release saem sem assinatura.
+  Para instalar um release, assine com a chave de debug (`apksigner sign --ks ~/.android/debug.keystore
+  --ks-pass pass:android <apk>`). Nunca crie nem procure a keystore oficial.
+- O Updater do sabor github consulta as releases públicas do GitHub; não aceite instalar a atualização que ele oferecer
+  (ela trocaria o build em teste).
+- Contas Google no emulador: se precisar da Play Store (YouTube/Instagram), peça para eu fazer o login; não digite senhas.
+
+## Ambiente
+1. Confira JDK 17, Android SDK (platform-tools, emulator, build-tools) e `adb version`. Se faltar algo, diga antes de instalar.
+2. Crie os AVDs (via avdmanager/sdkmanager):
+   - **Principal:** API 35 ou 36 com Google Play (para instalar YouTube e Instagram pela loja).
+   - **Root:** API 35 Google APIs (sem Play), para `adb root`: mudar a hora do sistema, ler arquivos, matar processos.
+   - **Antigo:** API 26 ou 28 (minSdk é 26), para comportamento de versões antigas.
+3. Builds: `./gradlew assembleGithubDebug assemblePlayDebug assembleGithubRelease`
+   e os testes existentes: `./gradlew test testGithubDebugUnitTest` (registre o que já falha antes de você mexer).
+   O primeiro build é lento. APKs em app/build/outputs/apk/<sabor>/<tipo>/.
+4. Instalar e ativar o serviço sem passar pela tela do sistema:
+   adb install -r <apk>
+   adb shell settings put secure enabled_accessibility_services dev.renova.app/dev.renova.app.service.BlockerAccessibilityService
+   adb shell settings put secure accessibility_enabled 1
+   Confirme com `adb shell dumpsys accessibility` que o serviço está ligado. Teste também o caminho manual pela tela
+   (tutorial › Concordo, ativar) pelo menos uma vez.
+5. Ferramentas para dirigir o app e colher evidência:
+   - `adb shell uiautomator dump /sdcard/ui.xml` + `adb pull` para achar botões; `adb shell input tap/swipe/text/keyevent`.
+   - Capturas: `adb shell screencap -p /sdcard/x.png` + `adb pull` (no PowerShell, `adb exec-out screencap -p > x.png`
+     corrompe o PNG).
+   - `adb logcat` filtrado pelo pid do app (`adb shell pidof dev.renova.app`); procure exceções e ANRs.
+   - Estado gravado (só no build debug): `adb shell run-as dev.renova.app ls -R files` e leia os .preferences_pb do DataStore
+     para conferir uso diário, liberações e regras com números reais.
+   - Janela da frente: `adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp"`.
+
+## Cenários para testar
+- Alvos: YouTube Shorts (aba Shorts, Short aberto por link, Short no meio do feed), Instagram Reels (aba e Reel em
+  tela cheia), app inteiro (ex.: um app qualquer instalado), site oficial no Chrome (youtube.com/shorts, instagram.com).
+- Regras: limite diário (0, 1 min, 5 min), horários (inclusive passando da meia-noite, ex. 22:00–07:00),
+  dias da semana, regra desativada, duas regras para o mesmo app.
+- Liberações: por leitura (1 min, 15 min, 1 h) por regra; tempo livre contando no limite; liberação para editar regras.
+- 7 minutos: ligado/desligado, feito/não feito, virada às 4h.
+- Janelas: app na frente, picture-in-picture (YouTube), tela dividida, Renova na frente (lendo), tela desligada/bloqueada.
+- Sistema: reiniciar o emulador (`adb reboot`), `am force-stop`, `am kill`, modo soneca
+  (`adb shell dumpsys deviceidle force-idle`), girar a tela, trocar tema claro/escuro, trocar idioma/fuso.
+- Datas (AVD root): virada do dia à meia-noite com o app aberto, hora mudada para trás/frente, mudança de fuso.
+
+## Etapas
+1. **Mapear:** leia as áreas acima e os testes existentes (app/src/test, app/src/testGithub, app/src/testGithubDebug).
+   Resuma, antes de testar, como o serviço decide o que bloquear, como conta o tempo e como as liberações expiram.
+2. **Ambiente:** suba os AVDs, gere e instale os builds, ative o serviço (seção Ambiente).
+3. **Revisão estática em paralelo:** divida em 3–4 áreas independentes (ex.: serviço e detecção; RuleEngine e AppStore;
+   bloqueio, leitura e 7 minutos; telas, permissões e sabores) e lance um revisor por área (só leitura, sem editar, sem git).
+   Cada um devolve: arquivo:linha, defeito em 1 frase, cenário concreto (o que a pessoa faz → resultado errado),
+   severidade, confiança (confirmado / plausível) e até 5 testes no emulador para confirmar os incertos.
+   Passe a eles o que já se sabe, para não repetirem.
+4. **Teste dinâmico no emulador (o mais importante):** enquanto eles leem, teste os cenários acima no app rodando:
+   - **Bloqueio:** a tela de bloqueio abre em cada alvo? O vídeo para (inclusive em PiP)? Voltar leva aonde deveria?
+     Meça o tempo: com limite de 1 min, quanto tempo de uso real até bloquear (cronometre e confira no DataStore)?
+   - **Burlar o bloqueio:** pense como quem quer escapar: PiP, tela dividida, abrir o Short por link/compartilhamento,
+     abrir o site no navegador, mudar a hora, desligar a acessibilidade, forçar parada, reiniciar, afrouxar a regra sem ler,
+     apertar Voltar/Home/Recentes rapidamente na tela de bloqueio. Para cada caminho: bloqueou ou escapou?
+   - **Liberação:** ler 1 min libera só a regra escolhida, pelo tempo certo, e o tempo livre conta no limite?
+     Ao expirar, bloqueia de novo na hora?
+   - **Fluxos multi-passo:** sair da leitura no meio, girar a tela, trocar o tema durante a leitura, voltar da leitura com
+     o bloqueio resolvido, apagar a regra com a tela de bloqueio aberta.
+   - **Corridas:** o serviço grava o uso a cada poucos segundos enquanto a tela grava regras e liberações. Edite regras e
+     libere por leitura enquanto um alvo está contando; confira no DataStore se algo se perdeu. Repita várias vezes.
+     Se precisar de volume, escreva um teste Robolectric com coroutines simultâneas (async/awaitAll) na branch revisao-tmp.
+   - **Tela do Xiaomi (BlockOverlay):** o emulador não barra telas em segundo plano. Para ver o caminho do aviso por cima,
+     use um gancho temporário na branch revisao-tmp que pule o startActivity, e teste: aparece, bloqueia toques,
+     Voltar funciona, some ao ir para a tela inicial, "Abrir o Renova" abre.
+   - **Sabores e R8:** compare github × play (play não pode ter atualizador nem pedir instalação de APK) e repita os fluxos
+     principais no release assinado com a chave de debug (R8 pode quebrar reflexão: Updater, AppOps do Xiaomi, serialização).
+   - **Textos:** o texto de cada tela bate com o comportamento real?
+5. **Confirmar o que os revisores trouxeram:** reproduza no emulador os achados de severidade alta.
+   Marque cada um como TESTADO (reproduzido, com a evidência), CÓDIGO (só leitura) ou DESCARTADO (com o motivo).
+   Para o que depende de fabricante (Xiaomi, Samsung), escreva o passo a passo para eu testar no celular.
+6. **Limpeza:** apague a branch revisao-tmp, confirme `git status` limpo, diga quais emuladores e daemons do Gradle
+   ficaram rodando e onde estão as capturas e logs.
+
+## Entrega
+- Resposta curta no chat: os achados graves com a evidência real (capturas, trecho do logcat, valores do DataStore,
+  tempos medidos) e o que foi descartado.
+- Relatório completo em Markdown (fora do repositório, numa pasta temporária), com:
+  - Crítico/Alto, Médio e Baixo, cada item com arquivo:linha, cenário, passos para reproduzir e marcação TESTADO/CÓDIGO;
+  - Roteiro de teste no celular para o que só dá para confirmar em aparelho real;
+  - Qualidade/testes (o que falta cobrir);
+  - Descartados/não reproduzidos.
+- Conte qualquer coisa inesperada (ex.: build que tentou baixar algo estranho, teste que já falhava antes,
+  aparelho físico que apareceu no adb).
+- Não corrija nada sem eu pedir. No fim, ofereça aplicar as correções e reexecutar os mesmos testes.
+
+## Contexto extra (opcional)
+{{commits recentes a olhar, achados já conhecidos, relatos de testadores, partes fora do escopo}}
+Já conhecidos: Xiaomi sem a permissão de janelas pop-up não abria a tela de bloqueio (corrigido em 8ba55d4 com
+BlockOverlay, ainda não testado em aparelho). Liberação por leitura é por regra e o tempo livre conta no limite
+(decisão de produto, não é bug).
