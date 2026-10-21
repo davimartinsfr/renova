@@ -3,7 +3,6 @@ package dev.renova.app.ui
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -92,7 +91,7 @@ fun HomeScreen(
     val tab = selectedTab
     val update by store.availableUpdate.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
-    var downloading by remember { mutableStateOf(false) }
+    val downloading by Updater.downloading.collectAsState()
     var showDisclosure by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
@@ -175,14 +174,7 @@ fun HomeScreen(
                         NoticeRow(
                             text = "Nova versão: v${u.version}",
                             action = if (downloading) "Baixando…" else "Atualizar",
-                        ) {
-                            if (!downloading) scope.launch {
-                                downloading = true
-                                runCatching { Updater.downloadAndInstall(context, u) }
-                                    .onFailure { Toast.makeText(context, "Falha ao baixar: ${it.message}", Toast.LENGTH_LONG).show() }
-                                downloading = false
-                            }
-                        }
+                        ) { Updater.startDownload(context, u) }
                     }
                     if (!serviceOn) {
                         NoticeRow(

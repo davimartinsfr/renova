@@ -7,13 +7,19 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
 import dev.renova.app.BuildConfig
 import dev.renova.app.MainActivity
 import dev.renova.app.R
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -68,18 +74,33 @@ object Updater {
         true
     }
 
-    fun isNewer(candidate: String, current: String): Boolean {
-        val a = candidate.split('.').map { it.toIntOrNull() ?: 0 }
-        val b = current.split('.').map { it.toIntOrNull() ?: 0 }
-        for (i in 0 until maxOf(a.size, b.size)) {
-            val d = a.getOrElse(i) { 0 } - b.getOrElse(i) { 0 }
-            if (d != 0) return d > 0
+    fun isNewer(candidate: String, current: String): Boolean = isNewerVersion(candidate, current)
+
+    /** Escopo do processo: sair da tela inicial no meio do download não o interrompe. */
+    private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val downloadingState = MutableStateFlow(false)
+    val downloading: StateFlow<Boolean> = downloadingState
+
+    /** Baixa e instala [update] em segundo plano; um segundo toque enquanto baixa não faz nada. */
+    fun startDownload(context: Context, update: AvailableUpdate) {
+        if (!downloadingState.compareAndSet(expect = false, update = true)) return
+        val app = context.applicationContext
+        downloadScope.launch {
+            runCatching { downloadAndInstall(app, update) }
+                .onFailure { Toast.makeText(app, "Falha ao baixar: ${it.message}", Toast.LENGTH_LONG).show() }
+            downloadingState.value = false
         }
-        return false
     }
 
+    /**
+     * Se o APK baixado é mesmo o Renova na versão anunciada. O instalador já recusa uma assinatura
+     * diferente, mas um arquivo trocado ou cortado no caminho é melhor parar aqui, com uma mensagem clara.
+     */
+    fun archiveMatches(archivePackage: String?, archiveVersion: String?, ownPackage: String, update: AvailableUpdate): Boolean =
+        archivePackage == ownPackage && archiveVersion == update.version
+
     /** Baixa o APK e abre o instalador do Android (que sempre pede confirmação). */
-    suspend fun downloadAndInstall(context: Context, update: AvailableUpdate) {
+    private suspend fun downloadAndInstall(context: Context, update: AvailableUpdate) {
         if (!context.packageManager.canRequestPackageInstalls()) {
             context.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
@@ -90,8 +111,15 @@ object Updater {
         val file = withContext(Dispatchers.IO) {
             val dir = File(context.cacheDir, "updates").apply { deleteRecursively(); mkdirs() }
             File(dir, "renova-${update.version}.apk").also { out ->
-                URL(update.apkUrl).openStream().use { input -> out.outputStream().use { input.copyTo(it) } }
+                val conn = URL(update.apkUrl).openConnection() as HttpURLConnection
+                conn.connectTimeout = 15_000
+                conn.readTimeout = 30_000
+                conn.inputStream.use { input -> out.outputStream().use { input.copyTo(it) } }
             }
+        }
+        val archive = context.packageManager.getPackageArchiveInfo(file.path, 0)
+        check(archiveMatches(archive?.packageName, archive?.versionName, context.packageName, update)) {
+            "o arquivo baixado não é o Renova v${update.version}."
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
         context.startActivity(

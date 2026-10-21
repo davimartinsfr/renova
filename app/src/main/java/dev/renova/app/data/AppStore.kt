@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.renova.app.BuildConfig
 import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.DevotionPick
@@ -195,7 +196,8 @@ class AppStore private constructor(context: Context) {
     val editUnlockUntil: Flow<Long> = store.data.map { it[Keys.EDIT_UNLOCK_UNTIL] ?: 0L }
 
     val availableUpdate: Flow<AvailableUpdate?> = store.data.map { p ->
-        decodeOrNull<AvailableUpdate>(p[Keys.UPDATE])
+        // Depois de instalar a versão avisada (ou uma mais nova), o aviso guardado não vale mais.
+        decodeOrNull<AvailableUpdate>(p[Keys.UPDATE])?.takeIf { isNewerVersion(it.version, BuildConfig.VERSION_NAME) }
     }
 
     suspend fun setAvailableUpdate(update: AvailableUpdate?) = store.edit { p ->

@@ -25,4 +25,13 @@ class UpdaterTest {
             updateCheckMessage(reached = true, update = AvailableUpdate("2.0", "https://x/renova.apk", "")),
         )
     }
+
+    @Test fun downloadedApkMustBeThisAppInTheAnnouncedVersion() {
+        val update = AvailableUpdate("1.13", "https://x/renova.apk")
+        assertTrue(Updater.archiveMatches("dev.renova.app", "1.13", "dev.renova.app", update))
+        assertFalse(Updater.archiveMatches("dev.renova.app", "1.12", "dev.renova.app", update))
+        assertFalse(Updater.archiveMatches("com.outro.app", "1.13", "dev.renova.app", update))
+        // Arquivo cortado: o Android não consegue ler o pacote.
+        assertFalse(Updater.archiveMatches(null, null, "dev.renova.app", update))
+    }
 }
