@@ -67,6 +67,9 @@ class BlockerAccessibilityService : AccessibilityService() {
     private val usage = mutableMapOf<String, Long>()
     private var usageLoaded = false
     private var dirtyTicks = 0
+    /** Tempo real do último tique com a tela acesa, e os milissegundos de uso ainda não somados (ver [Enforcement.tickMs]). */
+    private var lastTickAt = 0L
+    private var usageCarryMs = 0L
     private var updateTicks = UPDATE_CHECK_EVERY_TICKS - 30
 
     private var active: ActiveTarget? = null
@@ -157,13 +160,22 @@ class BlockerAccessibilityService : AccessibilityService() {
                 browserTicks = 0
                 browsers = installedBrowsers()
             }
-            if (!power.isInteractive) continue
+            if (!power.isInteractive) {
+                lastTickAt = 0L
+                continue
+            }
             evaluate()
             val covered = overlay.blockedPackage.takeIf { overlay.isShowing }
             val others = Enforcement.uncovered(otherVisibleTargets(), covered)
             val inUse = RuleEngine.inUse(rules, Enforcement.uncovered(others + listOfNotNull(active), covered))
-            if (inUse.isNotEmpty()) {
-                inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
+            val tickAt = SystemClock.elapsedRealtime()
+            // Sobra de milissegundos de um tique para o outro; sem nada em uso, não há o que levar adiante.
+            usageCarryMs = if (inUse.isEmpty()) 0L else usageCarryMs + Enforcement.tickMs(lastTickAt, tickAt)
+            lastTickAt = tickAt
+            val seconds = usageCarryMs / 1000
+            usageCarryMs %= 1000
+            if (seconds > 0) {
+                inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + seconds }
                 if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
             }
             checkBlock()

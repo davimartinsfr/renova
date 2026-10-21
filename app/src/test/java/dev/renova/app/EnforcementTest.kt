@@ -107,4 +107,16 @@ class EnforcementTest {
         // Outro navegador não herda a URL do primeiro.
         assertNull(Enforcement.withLastUrl(ActiveTarget("org.mozilla.firefox"), isBrowser = true, last = last).first.url)
     }
+
+    @Test fun tickCountsRealTimeUpToTwoSeconds() {
+        assertEquals(1_000L, Enforcement.tickMs(prevTickAt = 0, now = 50_000))
+        assertEquals(1_027L, Enforcement.tickMs(prevTickAt = 10_000, now = 11_027))
+        // Laço segurado (ou o sistema dormiu): não conta o buraco.
+        assertEquals(Enforcement.MAX_TICK_MS, Enforcement.tickMs(prevTickAt = 10_000, now = 70_000))
+        // 300 voltas de 1,027 s somam os mesmos ~308 s reais, e não 300.
+        var total = 0L
+        var at = 1L
+        repeat(300) { val next = at + 1_027; total += Enforcement.tickMs(at, next); at = next }
+        assertEquals(308_100L, total)
+    }
 }

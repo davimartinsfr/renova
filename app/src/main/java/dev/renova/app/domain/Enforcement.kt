@@ -28,6 +28,9 @@ object Enforcement {
     /** Diferença entre o relógio e o tempo real a partir da qual é a pessoa (ou a rede) mudando a hora. */
     const val CLOCK_JUMP_MS = 5_000L
 
+    /** Mais que isto entre dois tiques é pausa (tela apagada, sistema segurando o serviço): não conta. */
+    const val MAX_TICK_MS = 2_000L
+
     /**
      * [blockedOutside]: algum alvo bloqueado está visível fora da janela ativa. [ownScreen]: a tela do
      * Renova na frente, ou null se a frente é de outro app. Na leitura e nos 7 minutos só pausa a mídia;
@@ -110,4 +113,12 @@ object Enforcement {
         last?.packageName == target.packageName -> target.copy(url = last.url) to last
         else -> target to null
     }
+
+    /**
+     * Tempo de uso de um tique: o tempo real desde o anterior ([prevTickAt] 0 = não houve), até [MAX_TICK_MS].
+     * Contar 1 s fixo por volta do laço deixava de fora o trabalho de cada volta: um limite de 5 min só
+     * bloqueava com uns 308 s reais.
+     */
+    fun tickMs(prevTickAt: Long, now: Long): Long =
+        if (prevTickAt == 0L) 1_000L else (now - prevTickAt).coerceIn(0L, MAX_TICK_MS)
 }
