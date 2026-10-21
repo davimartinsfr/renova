@@ -62,6 +62,9 @@ object TargetDetector {
     /** Limite de nós visitados na busca de reserva: a árvore inteira de uma página pesaria a cada evento. */
     private const val MAX_SCANNED_NODES = 300
 
+    /** Se [pkg] é um navegador: está na lista ou entre os [browsers] instalados. */
+    fun isBrowser(pkg: String, browsers: Set<String>): Boolean = pkg in URL_BAR_IDS || pkg in browsers
+
     /** [browsers]: navegadores instalados (abrem links https), para buscar a barra nos que não estão na lista. */
     fun detect(root: AccessibilityNodeInfo, browsers: Set<String> = emptySet()): ActiveTarget? {
         val pkg = root.packageName?.toString() ?: return null

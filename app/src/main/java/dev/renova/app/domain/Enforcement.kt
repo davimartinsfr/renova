@@ -20,6 +20,9 @@ data class AppWindow(
     val area: Long,
 )
 
+/** Última URL lida na barra do navegador que está na frente. */
+data class LastUrl(val packageName: String, val url: String)
+
 /** Decisões do serviço de bloqueio, sem nada de Android, para dar para testar. */
 object Enforcement {
     /** Diferença entre o relógio e o tempo real a partir da qual é a pessoa (ou a rede) mudando a hora. */
@@ -94,5 +97,17 @@ object Enforcement {
     fun clockJump(prevWallMs: Long, prevElapsedMs: Long, wallMs: Long, elapsedMs: Long): Long {
         val jump = (wallMs - prevWallMs) - (elapsedMs - prevElapsedMs)
         return if (kotlin.math.abs(jump) > CLOCK_JUMP_MS) jump else 0L
+    }
+
+    /**
+     * A barra do navegador some no vídeo em tela cheia e ao rolar a página, e aí [target] chega sem URL.
+     * Enquanto o mesmo navegador continua na frente, vale a última URL lida; outro app na frente esquece ela.
+     * Devolve o alvo a usar e o que guardar para a próxima leitura.
+     */
+    fun withLastUrl(target: ActiveTarget, isBrowser: Boolean, last: LastUrl?): Pair<ActiveTarget, LastUrl?> = when {
+        !isBrowser -> target to null
+        target.url != null -> target to LastUrl(target.packageName, target.url)
+        last?.packageName == target.packageName -> target.copy(url = last.url) to last
+        else -> target to null
     }
 }

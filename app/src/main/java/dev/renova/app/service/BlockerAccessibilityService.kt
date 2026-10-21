@@ -22,6 +22,7 @@ import dev.renova.app.domain.AppWindow
 import dev.renova.app.domain.BlockReason
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.Enforcement
+import dev.renova.app.domain.LastUrl
 import dev.renova.app.domain.OffscreenAction
 import dev.renova.app.domain.OwnScreen
 import dev.renova.app.domain.Rule
@@ -60,6 +61,8 @@ class BlockerAccessibilityService : AccessibilityService() {
     /** Navegadores instalados, para achar a barra de endereço nos que o TargetDetector não conhece. */
     private var browsers: Set<String> = emptySet()
     private var browserTicks = 0
+    /** Última URL do navegador da frente, para quando a barra some (ver [Enforcement.withLastUrl]). */
+    private var lastUrl: LastUrl? = null
     private var usageDate = LocalDate.now().toString()
     private val usage = mutableMapOf<String, Long>()
     private var usageLoaded = false
@@ -114,7 +117,9 @@ class BlockerAccessibilityService : AccessibilityService() {
     private fun evaluate() {
         syncOverlay()
         val root = rootInActiveWindow ?: return
-        val target = TargetDetector.detect(root, browsers) ?: return
+        val detected = TargetDetector.detect(root, browsers) ?: return
+        val (target, last) = Enforcement.withLastUrl(detected, TargetDetector.isBrowser(detected.packageName, browsers), lastUrl)
+        lastUrl = last
         ownAppInFront = target.packageName == packageName
         active = target.takeIf(::isCounted)
         checkBlock()

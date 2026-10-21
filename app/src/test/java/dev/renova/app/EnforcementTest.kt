@@ -3,6 +3,7 @@ package dev.renova.app
 import dev.renova.app.domain.ActiveTarget
 import dev.renova.app.domain.AppWindow
 import dev.renova.app.domain.Enforcement
+import dev.renova.app.domain.LastUrl
 import dev.renova.app.domain.OffscreenAction
 import dev.renova.app.domain.OwnScreen
 import dev.renova.app.domain.Rule
@@ -87,5 +88,23 @@ class EnforcementTest {
         assertEquals(-3_600_000L, Enforcement.clockJump(0, 0, wallMs = 1_000 - 3_600_000, elapsedMs = 1_000))
         // Hora adiantada 1 dia.
         assertEquals(86_400_000L, Enforcement.clockJump(0, 0, wallMs = 1_000 + 86_400_000, elapsedMs = 1_000))
+    }
+
+    @Test fun browserKeepsTheLastUrlWhileTheBarIsHidden() {
+        val chrome = "com.android.chrome"
+        val (read, last) = Enforcement.withLastUrl(ActiveTarget(chrome, url = "m.youtube.com/watch"), isBrowser = true, last = null)
+        assertEquals("m.youtube.com/watch", read.url)
+        assertEquals(LastUrl(chrome, "m.youtube.com/watch"), last)
+        // Tela cheia: sem barra, vale a guardada.
+        val (fullscreen, kept) = Enforcement.withLastUrl(ActiveTarget(chrome), isBrowser = true, last = last)
+        assertEquals("m.youtube.com/watch", fullscreen.url)
+        assertEquals(last, kept)
+        // Outro app na frente esquece; voltar ao navegador sem barra não reaproveita.
+        val (other, forgotten) = Enforcement.withLastUrl(ActiveTarget("com.whatsapp"), isBrowser = false, last = kept)
+        assertNull(other.url)
+        assertNull(forgotten)
+        assertNull(Enforcement.withLastUrl(ActiveTarget(chrome), isBrowser = true, last = forgotten).first.url)
+        // Outro navegador não herda a URL do primeiro.
+        assertNull(Enforcement.withLastUrl(ActiveTarget("org.mozilla.firefox"), isBrowser = true, last = last).first.url)
     }
 }
