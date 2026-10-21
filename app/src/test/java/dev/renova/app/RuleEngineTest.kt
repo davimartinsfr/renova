@@ -123,6 +123,26 @@ class RuleEngineTest {
         assertFalse(RuleEngine.isLoosening(base.copy(enabled = false), null))
     }
 
+    @Test fun tighteningIsNotLoosening() {
+        val evenings = reddit.copy(dailyLimitMin = null, schedules = listOf(Schedule(startMin = 18 * 60, endMin = 22 * 60)))
+        // Horário → sempre bloqueado (limite 0).
+        assertFalse(RuleEngine.isLoosening(evenings, evenings.copy(dailyLimitMin = 0, schedules = emptyList())))
+        assertFalse(RuleEngine.isLoosening(reddit.copy(dailyLimitMin = 30), reddit.copy(dailyLimitMin = 0)))
+        // Sempre bloqueado → limite de 5 min afrouxa.
+        assertTrue(RuleEngine.isLoosening(reddit.copy(dailyLimitMin = 0), reddit.copy(dailyLimitMin = 5)))
+        assertTrue(RuleEngine.isLoosening(reddit.copy(dailyLimitMin = 0), evenings))
+        // Shorts → app YouTube inteiro, com as mesmas restrições ou mais.
+        val shorts = Rule("s", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 15)
+        val youtube = Rule("s", TargetType.APP, "com.google.android.youtube", "YouTube", dailyLimitMin = 15)
+        assertFalse(RuleEngine.isLoosening(shorts, youtube))
+        assertTrue(RuleEngine.isLoosening(shorts, youtube.copy(dailyLimitMin = 30)))
+        // Ao contrário (app → só a seção), ou para outro app, afrouxa.
+        assertTrue(RuleEngine.isLoosening(youtube, shorts))
+        assertTrue(RuleEngine.isLoosening(shorts, youtube.copy(target = "com.instagram.android")))
+        val reels = Rule("r", TargetType.IG_REELS, label = "Instagram Reels", dailyLimitMin = 0)
+        assertFalse(RuleEngine.isLoosening(reels, Rule("r", TargetType.APP, "com.instagram.android", "Instagram", dailyLimitMin = 0)))
+    }
+
 }
 
 /** Contagem de tempo e bloqueio com vários alvos na tela e liberações por regra. */

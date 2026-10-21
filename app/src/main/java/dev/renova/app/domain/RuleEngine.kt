@@ -114,15 +114,32 @@ object RuleEngine {
     fun isLoosening(old: Rule?, new: Rule?): Boolean {
         if (old == null || !old.enabled) return false
         if (new == null || !new.enabled) return true
-        if (old.type != new.type || old.target != new.target) return true
+        if ((old.type != new.type || old.target != new.target) && !coversTarget(new, old)) return true
+        val newMask = blockedMask(new)
+        // Bloqueada a semana inteira (limite 0 ou horário o tempo todo): não há como ser mais solta que antes.
+        if (newMask.cardinality() == MINUTES_PER_WEEK) return false
         val oldLimit = old.dailyLimitMin
         val newLimit = new.dailyLimitMin
         if (oldLimit != null && (newLimit == null || newLimit > oldLimit)) return true
-        val oldMask = weekMask(old.schedules)
-        val newMask = weekMask(new.schedules)
+        val oldMask = blockedMask(old)
         oldMask.andNot(newMask)
         return !oldMask.isEmpty
     }
+
+    /** Pacote do app de cada seção: trocar o Shorts pelo app YouTube inteiro aperta o bloqueio. */
+    private val SECTION_APPS = mapOf(
+        TargetType.YT_SHORTS to "com.google.android.youtube",
+        TargetType.IG_REELS to "com.instagram.android",
+    )
+
+    /** Se o alvo de [new] contém o de [old]: o mesmo, ou o app inteiro no lugar de uma seção dele. */
+    private fun coversTarget(new: Rule, old: Rule): Boolean =
+        (new.type == old.type && new.target == old.target) ||
+            (new.type == TargetType.APP && new.target == SECTION_APPS[old.type])
+
+    /** Minutos da semana em que [rule] bloqueia sem depender do uso: com limite 0, todos. */
+    private fun blockedMask(rule: Rule): java.util.BitSet =
+        if (rule.dailyLimitMin == 0) java.util.BitSet(MINUTES_PER_WEEK).apply { set(0, MINUTES_PER_WEEK) } else weekMask(rule.schedules)
 
     private fun weekMask(schedules: List<Schedule>): java.util.BitSet {
         val mask = java.util.BitSet(MINUTES_PER_WEEK)
