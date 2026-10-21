@@ -47,11 +47,16 @@ import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.UnlockOption
 import kotlinx.coroutines.launch
 
-/** Passos do tutorial; o das notificações só existe no Android 13+, onde elas pedem permissão. */
-internal enum class OnboardingStep { WELCOME, UNLOCK, ACCESSIBILITY, BATTERY, NOTIFICATIONS, DEVOTION, DONE }
+/**
+ * Passos do tutorial; o das notificações só existe no Android 13+, onde elas pedem permissão, e o das
+ * janelas em segundo plano só no Xiaomi.
+ */
+internal enum class OnboardingStep { WELCOME, UNLOCK, ACCESSIBILITY, POPUP, BATTERY, NOTIFICATIONS, DEVOTION, DONE }
 
-internal fun onboardingSteps(sdk: Int = Build.VERSION.SDK_INT) =
-    OnboardingStep.entries.filter { it != OnboardingStep.NOTIFICATIONS || sdk >= 33 }
+internal fun onboardingSteps(sdk: Int = Build.VERSION.SDK_INT, xiaomi: Boolean = isXiaomi()) =
+    OnboardingStep.entries.filter {
+        (it != OnboardingStep.NOTIFICATIONS || sdk >= 33) && (it != OnboardingStep.POPUP || xiaomi)
+    }
 
 /**
  * Tutorial da primeira abertura: explica o app e pede cada permissão com um toque. Nenhum passo prende:
@@ -96,6 +101,9 @@ fun OnboardingScreen(initialStep: Int = 0, onFinish: (createRule: Boolean) -> Un
                     OnboardingStep.UNLOCK -> PrimaryButton("Continuar", next, Modifier.fillMaxWidth())
                     OnboardingStep.ACCESSIBILITY -> PermissionButtons(permissions.serviceOn, "Concordo, ativar", next) {
                         openAccessibilitySettings(context)
+                    }
+                    OnboardingStep.POPUP -> PermissionButtons(permissions.popupOk == true, "Abrir permissões", next) {
+                        openXiaomiPermissions(context)
                     }
                     OnboardingStep.BATTERY -> PermissionButtons(permissions.batteryOk, "Permitir", next) {
                         requestIgnoreBattery(context)
@@ -166,7 +174,14 @@ private fun StepContent(step: OnboardingStep, permissions: PermissionState) {
         OnboardingStep.ACCESSIBILITY -> {
             Title("Acessibilidade")
             Body(ACCESSIBILITY_DISCLOSURE)
+            if (isXiaomi() && !permissions.serviceOn) Body(ACCESSIBILITY_XIAOMI_STEPS)
             if (permissions.serviceOn) Granted()
+        }
+        OnboardingStep.POPUP -> {
+            Title("Tela de bloqueio")
+            Body("Para a tela de bloqueio aparecer por cima dos apps, o Xiaomi pede mais uma permissão.")
+            Body("Toque em Abrir permissões e ${XIAOMI_POPUP_STEPS.replaceFirstChar { it.lowercase() }}")
+            if (permissions.popupOk == true) Granted()
         }
         OnboardingStep.BATTERY -> {
             Title("Segundo plano")

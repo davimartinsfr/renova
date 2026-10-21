@@ -168,7 +168,8 @@ fun HomeScreen(
                 }
             }
             // Avisos de configuração valem para o app todo: aparecem nas duas abas.
-            if (update != null || !serviceOn || !batteryOk || !notifOk) item {
+            val popupDenied = permissions.popupOk == false
+            if (update != null || !serviceOn || !batteryOk || !notifOk || popupDenied) item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     update?.let { u ->
                         NoticeRow(
@@ -192,6 +193,14 @@ fun HomeScreen(
                                 "Se não der para ativar, abra as informações do app Renova, toque nos três pontinhos e em Permitir configurações restritas.",
                             urgent = true,
                         ) { showDisclosure = true }
+                    }
+                    if (popupDenied) {
+                        NoticeRow(
+                            text = "Permita a tela de bloqueio abrir",
+                            action = "Permitir",
+                            detail = XIAOMI_POPUP_STEPS,
+                            urgent = true,
+                        ) { openXiaomiPermissions(context) }
                     }
                     if (!batteryOk) {
                         NoticeRow(text = "Permita rodar em segundo plano", action = "Permitir") { requestIgnoreBattery(context) }
@@ -272,7 +281,7 @@ internal fun AccessibilityDisclosure(onAccept: () -> Unit, onDismiss: () -> Unit
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Acessibilidade") },
-        text = { Text(ACCESSIBILITY_DISCLOSURE) },
+        text = { Text(if (isXiaomi()) "$ACCESSIBILITY_DISCLOSURE\n\n$ACCESSIBILITY_XIAOMI_STEPS" else ACCESSIBILITY_DISCLOSURE) },
         confirmButton = { TextButton(onClick = onAccept) { Text("Concordo, ativar") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Agora não") } },
     )

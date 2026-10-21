@@ -78,6 +78,7 @@ class BlockedActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        isShowing = true
         // Voltando da leitura (ou dos 7 minutos) com o bloqueio resolvido: some da frente.
         lifecycleScope.launch {
             val store = AppStore.get(this@BlockedActivity)
@@ -88,6 +89,11 @@ class BlockedActivity : ComponentActivity() {
             }
             if (resolved) finish()
         }
+    }
+
+    override fun onPause() {
+        isShowing = false
+        super.onPause()
     }
 
     private fun ruleIds(): List<String> = intent.getStringArrayExtra(EXTRA_RULE_IDS)?.toList().orEmpty()
@@ -106,6 +112,11 @@ class BlockedActivity : ComponentActivity() {
         const val EXTRA_TYPE = "type"
         /** Regras que bloqueiam o app: ler libera todas elas. */
         const val EXTRA_RULE_IDS = "rule_ids"
+
+        /** Na frente agora: o serviço confere isto para saber se o sistema deixou a tela abrir. */
+        @Volatile
+        var isShowing = false
+            private set
     }
 }
 
@@ -117,6 +128,8 @@ internal fun BlockedScreen(
     onLeave: () -> Unit,
     onRead: (UnlockOption) -> Unit,
     onDevotion: () -> Unit,
+    /** Versão desenhada pelo serviço quando o sistema não deixou a tela abrir: só dá para ir ao Renova. */
+    onOpenApp: (() -> Unit)? = null,
 ) {
     val devotion = reason == BlockReason.DEVOTION.name
     var choosing by remember { mutableStateOf(false) }
@@ -145,7 +158,15 @@ internal fun BlockedScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (devotion) {
+            if (onOpenApp != null) {
+                Text(
+                    BLOCKED_FALLBACK_HINT,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                )
+                PrimaryButton("Abrir o Renova", onClick = onOpenApp, modifier = Modifier.fillMaxWidth())
+            } else if (devotion) {
                 // As liberações por leitura não valem aqui: só os 7 minutos soltam estes alvos.
                 PrimaryButton("Começar os 7 minutos", onClick = onDevotion, modifier = Modifier.fillMaxWidth())
             } else {
@@ -165,6 +186,10 @@ internal fun BlockedScreen(
         }
     }
 }
+
+internal const val BLOCKED_FALLBACK_HINT =
+    "O celular não deixou o Renova abrir a tela de leitura. Se o botão abaixo não funcionar, abra o Renova pela " +
+        "tela inicial. Para isso não acontecer de novo, veja os avisos na tela inicial do Renova."
 
 /** Ampulheta em duas cores: vidro na cor do texto, areia no ocre. */
 @Composable

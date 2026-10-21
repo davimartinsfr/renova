@@ -39,6 +39,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var store: AppStore
     private lateinit var power: PowerManager
+    private lateinit var overlay: BlockOverlay
 
     private var rules: List<Rule> = emptyList()
     private var devotionDoneDay: String? = null
@@ -60,6 +61,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         store = AppStore.get(this)
         power = getSystemService(PowerManager::class.java)
+        overlay = BlockOverlay(this)
         scope.launch { store.rules.collect { rules = it } }
         scope.launch { store.unlocks.collect { unlocks = it } }
         scope.launch { store.devotionDoneDay.collect { devotionDoneDay = it } }
@@ -82,11 +84,13 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         if (usageLoaded) runBlocking { flushUsage() }
+        if (::overlay.isInitialized) overlay.hide()
         scope.cancel()
         super.onDestroy()
     }
 
     private fun evaluate() {
+        syncOverlay()
         val root = rootInActiveWindow ?: return
         val target = TargetDetector.detect(root) ?: return
         ownAppInFront = target.packageName == packageName
@@ -143,7 +147,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         val target = active ?: return
         val blocking = blocking(target)
         val (rule, reason) = blocking.firstOrNull() ?: return
-        block(rule, reason.name, blocking.map { it.first.id })
+        block(target, rule, reason.name, blocking.map { it.first.id })
     }
 
     /** Regras que bloqueiam [target] agora (ver [RuleEngine.blocking]). */
@@ -156,7 +160,9 @@ class BlockerAccessibilityService : AccessibilityService() {
     }
 
     /** [ruleIds]: todas as regras que bloqueiam o alvo, para a leitura liberar o app de vez. */
-    private fun block(rule: Rule, reason: String, ruleIds: List<String>) {
+    private fun block(target: ActiveTarget, rule: Rule, reason: String, ruleIds: List<String>) {
+        // O aviso por cima já está bloqueando: não adianta tentar abrir a tela de novo.
+        if (overlay.isShowing) return
         val now = System.currentTimeMillis()
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
@@ -176,12 +182,46 @@ class BlockerAccessibilityService : AccessibilityService() {
             scope.launch {
                 delay(SECTION_BACK_DELAY_MS)
                 startActivity(blockedScreen)
+                ensureShown(target.packageName, rule, reason, blockedScreen)
             }
         } else {
             startActivity(blockedScreen)
+            scope.launch { ensureShown(target.packageName, rule, reason, blockedScreen) }
         }
         scope.launch { flushUsage() }
     }
+
+    /**
+     * Alguns sistemas (Xiaomi sem a permissão de janelas pop-up em segundo plano) ignoram o startActivity
+     * sem erro nenhum: o Shorts fechava, mas a tela de bloqueio não aparecia. Se ela não abriu, o serviço
+     * desenha o bloqueio ele mesmo por cima do app.
+     */
+    private suspend fun ensureShown(pkg: String, rule: Rule, reason: String, blockedScreen: Intent) {
+        delay(SHOW_CHECK_MS)
+        if (BlockedActivity.isShowing || overlay.isShowing || frontAppPackage() != pkg) return
+        overlay.show(
+            blockedPackage = pkg,
+            label = rule.label,
+            reason = reason,
+            onOpenApp = { startActivity(blockedScreen) },
+            onLeave = {
+                overlay.hide()
+                if (!rule.type.isSection) performGlobalAction(GLOBAL_ACTION_HOME)
+            },
+        )
+    }
+
+    /** Fecha o aviso quando a tela de bloqueio de verdade abriu ou a pessoa saiu do app bloqueado. */
+    private fun syncOverlay() {
+        if (!overlay.isShowing) return
+        val front = frontAppPackage()
+        if (BlockedActivity.isShowing || (front != null && front != overlay.blockedPackage)) overlay.hide()
+    }
+
+    /** App na janela mais de cima (a lista de janelas vem de cima para baixo); ignora o próprio aviso. */
+    private fun frontAppPackage(): String? = windows
+        .firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        ?.root?.packageName?.toString()
 
     /**
      * Um alvo bloqueado fora da janela ativa (em picture-in-picture, ou na outra metade da tela dividida)
@@ -205,6 +245,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         private const val EVAL_THROTTLE_MS = 300L
         private const val BLOCK_COOLDOWN_MS = 1500L
         private const val SECTION_BACK_DELAY_MS = 400L
+        private const val SHOW_CHECK_MS = 1200L
         private const val EXPAND_COOLDOWN_MS = 3000L
         private const val FLUSH_EVERY_TICKS = 10
         private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60

@@ -147,6 +147,12 @@ fun SettingsScreen(onTutorial: () -> Unit = {}, onBack: () -> Unit) {
             SectionTitle("Permissões")
             Column {
                 PermissionRow("Acessibilidade", serviceOn, divider = true) { showDisclosure = true }
+                // Sem como conferir a permissão do Xiaomi, a linha fica sempre com o atalho.
+                if (permissions.popupNeeded) {
+                    PermissionRow("Janelas em segundo plano", permissions.popupOk == true, divider = true) {
+                        openXiaomiPermissions(context)
+                    }
+                }
                 PermissionRow("Segundo plano", batteryOk, divider = true) { requestIgnoreBattery(context) }
                 PermissionRow("Notificações", notifOk, divider = false) {
                     permissions.requestNotifications()

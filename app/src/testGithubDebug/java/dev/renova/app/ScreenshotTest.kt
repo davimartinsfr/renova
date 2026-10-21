@@ -1,5 +1,6 @@
 package dev.renova.app
 
+import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -45,6 +46,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.util.ReflectionHelpers
 
 /** Não verifica nada: só grava PNGs das telas em app/build/screenshots para conferir o visual. */
 @RunWith(AndroidJUnit4::class)
@@ -84,13 +86,13 @@ class ScreenshotTest {
     @Test fun tutorialEscuro() = tutorial(dark = true)
 
     /** Um setContent só por teste: troca de passo por estado e grava um PNG de cada. */
-    private fun tutorial(dark: Boolean) {
+    private fun tutorial(dark: Boolean, prefix: String = "tutorial") {
         var step by mutableIntStateOf(0)
         compose.setContent { AppTheme(dark = dark) { key(step) { OnboardingScreen(initialStep = step) {} } } }
         onboardingSteps().forEachIndexed { i, s ->
             step = i
             compose.waitForIdle()
-            compose.onRoot().captureRoboImage("build/screenshots/tutorial-${i + 1}-${s.name.lowercase()}-${if (dark) "escuro" else "claro"}.png")
+            compose.onRoot().captureRoboImage("build/screenshots/$prefix-${i + 1}-${s.name.lowercase()}-${if (dark) "escuro" else "claro"}.png")
         }
     }
     @Test fun configuracoesEscuro() = shot("configuracoes", true) { SettingsScreen {} }
@@ -104,6 +106,20 @@ class ScreenshotTest {
 
     @Test fun bloqueadoClaro() = shot("bloqueado", false) {
         BlockedScreen("Instagram", BlockReason.LIMIT.name, "Próximo: João 3", {}, {}, {})
+    }
+
+    /** O que o serviço desenha quando o sistema não deixa a tela de bloqueio abrir. */
+    @Test fun bloqueadoAvisoClaro() = shot("bloqueado-aviso", false) {
+        BlockedScreen("YouTube Shorts", BlockReason.LIMIT.name, null, {}, {}, {}, onOpenApp = {})
+    }
+
+    @Test fun tutorialXiaomi() {
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "Xiaomi")
+        try {
+            tutorial(dark = false, prefix = "tutorial-xiaomi")
+        } finally {
+            ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "robolectric")
+        }
     }
 
     @Test fun leituraEscuro() {

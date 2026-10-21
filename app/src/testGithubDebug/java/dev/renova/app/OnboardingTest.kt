@@ -56,6 +56,12 @@ class OnboardingTest {
         assertTrue(OnboardingStep.NOTIFICATIONS in onboardingSteps(33))
     }
 
+    @Test fun popupStepOnlyOnXiaomi() {
+        assertFalse(OnboardingStep.POPUP in onboardingSteps(xiaomi = false))
+        val steps = onboardingSteps(xiaomi = true)
+        assertEquals(steps.indexOf(OnboardingStep.ACCESSIBILITY) + 1, steps.indexOf(OnboardingStep.POPUP))
+    }
+
     @Test fun skipFinishesWithoutRule() {
         var result: Boolean? = null
         compose.setContent { AppTheme { OnboardingScreen { result = it } } }

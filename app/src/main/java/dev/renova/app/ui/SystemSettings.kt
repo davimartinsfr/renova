@@ -2,6 +2,7 @@ package dev.renova.app.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.AppOpsManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.ContextWrapper
@@ -11,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.os.Process
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
@@ -37,11 +39,28 @@ internal const val ACCESSIBILITY_DISCLOSURE =
         "Shorts, Reels e sites no navegador. Assim ele conta o tempo e aplica suas regras.\n\n" +
         "Nada do que aparece na tela é guardado ou enviado."
 
+/** No Xiaomi a acessibilidade abre numa tela própria, sem o Renova destacado. */
+internal const val ACCESSIBILITY_XIAOMI_STEPS =
+    "No Xiaomi: na Acessibilidade, toque em Apps baixados (ou Serviços baixados), depois em Renova, e ligue. " +
+        "Se aparecer um aviso com contagem, espere e toque em OK."
+
+/** Onde fica, no Xiaomi, a permissão que deixa a tela de bloqueio abrir. */
+internal const val XIAOMI_POPUP_STEPS =
+    "Ligue “Exibir janelas pop-up enquanto executado em segundo plano” (ou “Abrir novas janelas em segundo plano”). " +
+        "Sem isso o Xiaomi impede a tela de bloqueio de abrir."
+
+/** Xiaomi, Redmi e POCO: todos informam "Xiaomi" como fabricante. */
+internal fun isXiaomi(): Boolean = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true)
+
 /** Estado das três permissões, reavaliado sempre que a tela volta ao primeiro plano. */
 internal class PermissionState(
     val serviceOn: Boolean,
     val batteryOk: Boolean,
     val notifOk: Boolean,
+    /** Só no Xiaomi: a permissão de abrir janelas em segundo plano, sem a qual a tela de bloqueio não abre. */
+    val popupNeeded: Boolean,
+    /** null quando o sistema não deixa conferir. */
+    val popupOk: Boolean?,
     /** Pop-up das notificações (ou as configurações, depois de duas recusas). */
     val requestNotifications: () -> Unit,
 )
@@ -61,6 +80,8 @@ internal fun rememberPermissionState(): PermissionState {
             batteryOk = context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName),
             notifOk = Build.VERSION.SDK_INT < 33 ||
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
+            popupNeeded = isXiaomi(),
+            popupOk = if (isXiaomi()) backgroundPopupAllowed(context) else true,
             requestNotifications = { requestNotifications(context, launcher) },
         )
     }
@@ -81,6 +102,29 @@ internal fun openAccessibilitySettings(context: Context) {
 
 private fun appDetails(context: Context) =
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+
+/** Código da permissão "Exibir janelas pop-up enquanto executado em segundo plano" no MIUI/HyperOS. */
+private const val OP_BACKGROUND_START_ACTIVITY = 10021
+
+/**
+ * O Xiaomi barra, sem erro nenhum, as telas abertas em segundo plano, e é assim que a tela de bloqueio abre.
+ * A permissão não tem API pública: lemos pelo AppOpsManager por reflexão (null se não der).
+ */
+internal fun backgroundPopupAllowed(context: Context): Boolean? = runCatching {
+    val ops = context.getSystemService(AppOpsManager::class.java)
+    val check = AppOpsManager::class.java.getMethod(
+        "checkOpNoThrow", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, String::class.java,
+    )
+    check.invoke(ops, OP_BACKGROUND_START_ACTIVITY, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
+}.getOrNull()
+
+/** "Outras permissões" do Renova no app Segurança do Xiaomi; se não existir, as informações do app. */
+internal fun openXiaomiPermissions(context: Context) {
+    val intent = Intent("miui.intent.action.APP_PERM_EDITOR")
+        .setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+        .putExtra("extra_pkgname", context.packageName)
+    runCatching { context.startActivity(intent) }.onFailure { context.startActivity(appDetails(context)) }
+}
 
 /** Pop-up do sistema para o Renova rodar em segundo plano sem restrições. */
 internal fun requestIgnoreBattery(context: Context) {
