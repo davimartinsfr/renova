@@ -399,6 +399,10 @@ class BlockerAccessibilityService : AccessibilityService() {
         val blocking = blocking(target)
         val (rule, reason) = blocking.firstOrNull() ?: return
         // O aviso já pausou ao abrir. Dispensado, só a pausa repetida segura o vídeo no PiP.
+        // Com o aviso aberto, um "play" de fora (fone, controles da notificação) volta a tocar o vídeo por
+        // baixo, sem contar tempo. Aceito de propósito: repausar mesmo só com isMusicActive também pararia
+        // uma música de fundo a cada volta (o que o N1 corrigiu), e sem ler as sessões de mídia não dá para
+        // saber qual app está tocando. O caso só existe quando o sistema ignora a tela de bloqueio (Xiaomi).
         if (overlay.isShowing) return
         if (pipNoticeDismissed == pkg) return pauseMedia()
         val blockedScreen = blockedScreenIntent(pkg, rule, reason.name, blocking.map { it.first.id }, Enforcement.blocksOnlySection(rule, target))
