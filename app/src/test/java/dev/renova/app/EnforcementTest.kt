@@ -119,4 +119,10 @@ class EnforcementTest {
         repeat(300) { val next = at + 1_027; total += Enforcement.tickMs(at, next); at = next }
         assertEquals(308_100L, total)
     }
+
+    @Test fun unreadFrontWindowDoesNotCount() {
+        val yt = ActiveTarget(youtube)
+        assertEquals(yt, Enforcement.frontToCount(yt, frontRead = true))
+        assertNull(Enforcement.frontToCount(yt, frontRead = false))
+    }
 }

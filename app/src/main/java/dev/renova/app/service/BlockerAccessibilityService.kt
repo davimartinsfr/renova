@@ -117,15 +117,17 @@ class BlockerAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    private fun evaluate() {
+    /** Devolve se conseguiu ler a janela ativa; sem ela, [active] é o da última leitura. */
+    private fun evaluate(): Boolean {
         syncOverlay()
-        val root = rootInActiveWindow ?: return
-        val detected = TargetDetector.detect(root, browsers) ?: return
+        val root = rootInActiveWindow ?: return false
+        val detected = TargetDetector.detect(root, browsers) ?: return false
         val (target, last) = Enforcement.withLastUrl(detected, TargetDetector.isBrowser(detected.packageName, browsers), lastUrl)
         lastUrl = last
         ownAppInFront = target.packageName == packageName
         active = target.takeIf(::isCounted)
         checkBlock()
+        return true
     }
 
     private fun isCounted(target: ActiveTarget) = target.packageName != packageName && target.packageName !in IGNORED_PACKAGES
@@ -164,10 +166,10 @@ class BlockerAccessibilityService : AccessibilityService() {
                 lastTickAt = 0L
                 continue
             }
-            evaluate()
+            val frontRead = evaluate()
             val covered = overlay.blockedPackage.takeIf { overlay.isShowing }
             val others = Enforcement.uncovered(otherVisibleTargets(), covered)
-            val inUse = RuleEngine.inUse(rules, Enforcement.uncovered(others + listOfNotNull(active), covered))
+            val inUse = RuleEngine.inUse(rules, Enforcement.uncovered(others + listOfNotNull(Enforcement.frontToCount(active, frontRead)), covered))
             val tickAt = SystemClock.elapsedRealtime()
             // Sobra de milissegundos de um tique para o outro; sem nada em uso, não há o que levar adiante.
             usageCarryMs = if (inUse.isEmpty()) 0L else usageCarryMs + Enforcement.tickMs(lastTickAt, tickAt)

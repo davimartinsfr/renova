@@ -121,4 +121,10 @@ object Enforcement {
      */
     fun tickMs(prevTickAt: Long, now: Long): Long =
         if (prevTickAt == 0L) 1_000L else (now - prevTickAt).coerceIn(0L, MAX_TICK_MS)
+
+    /**
+     * App da frente que conta tempo neste tique. Sem conseguir ler a janela ativa ([frontRead] falso), [active]
+     * é o de antes e pode já ter saído: não conta agora. Ele não é zerado, para não piscar nas transições.
+     */
+    fun frontToCount(active: ActiveTarget?, frontRead: Boolean): ActiveTarget? = active.takeIf { frontRead }
 }
