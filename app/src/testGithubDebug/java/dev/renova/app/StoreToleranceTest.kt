@@ -47,4 +47,11 @@ class StoreToleranceTest {
         assertTrue(store.usage.first().seconds.isEmpty())
         assertTrue(store.rules.first().isEmpty())
     }
+
+    @Test fun defaultValuesAreWrittenToDisk() = runBlocking {
+        store.setRaw("rules", "[]")
+        store.saveRule(Rule("d", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 10))
+        val raw = store.raw("rules")!!
+        assertTrue(raw, "\"enabled\":true" in raw && "\"schedules\":[]" in raw)
+    }
 }

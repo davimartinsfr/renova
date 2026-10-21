@@ -46,7 +46,9 @@ data class DailyUsage(val date: String, val seconds: Map<String, Long>) {
 
 class AppStore private constructor(context: Context) {
     private val store = context.applicationContext.dataStore
-    private val json = Json { ignoreUnknownKeys = true }
+    // encodeDefaults: grava também os valores padrão (dias, ativa…). Se um padrão mudar numa versão futura,
+    // as regras salvas continuam como a pessoa as deixou.
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     /** Valor salvo decodificado, ou null se está corrompido ou é de uma versão que esta não entende. */
     private inline fun <reified T> decodeOrNull(raw: String?): T? =
