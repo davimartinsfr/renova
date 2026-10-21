@@ -4,8 +4,10 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.media.AudioManager
+import android.net.Uri
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
@@ -55,6 +57,9 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var devotionDoneDay: String? = null
     private var devotionEnabled = false
     private var unlocks: Map<String, Long> = emptyMap()
+    /** Navegadores instalados, para achar a barra de endereço nos que o TargetDetector não conhece. */
+    private var browsers: Set<String> = emptySet()
+    private var browserTicks = 0
     private var usageDate = LocalDate.now().toString()
     private val usage = mutableMapOf<String, Long>()
     private var usageLoaded = false
@@ -77,6 +82,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         store = AppStore.get(this)
         power = getSystemService(PowerManager::class.java)
         overlay = BlockOverlay(this)
+        browsers = installedBrowsers()
         scope.launch { store.rules.collect { rules = it } }
         scope.launch { store.unlocks.collect { unlocks = it } }
         scope.launch { store.devotionDoneDay.collect { devotionDoneDay = it } }
@@ -107,7 +113,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private fun evaluate() {
         syncOverlay()
         val root = rootInActiveWindow ?: return
-        val target = TargetDetector.detect(root) ?: return
+        val target = TargetDetector.detect(root, browsers) ?: return
         ownAppInFront = target.packageName == packageName
         active = target.takeIf(::isCounted)
         checkBlock()
@@ -121,8 +127,16 @@ class BlockerAccessibilityService : AccessibilityService() {
      */
     private fun otherVisibleTargets(): List<ActiveTarget> = windows
         .filter { (it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isInPictureInPictureMode) && !it.isActive }
-        .mapNotNull { window -> window.root?.let(TargetDetector::detect) }
+        .mapNotNull { window -> window.root?.let { TargetDetector.detect(it, browsers) } }
         .filter(::isCounted)
+
+    /** Apps que abrem um link https qualquer: os navegadores (os apps com links próprios só abrem os seus). */
+    private fun installedBrowsers(): Set<String> {
+        val link = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).addCategory(Intent.CATEGORY_BROWSABLE)
+        return runCatching {
+            packageManager.queryIntentActivities(link, PackageManager.MATCH_ALL).map { it.activityInfo.packageName }.toSet()
+        }.getOrDefault(emptySet())
+    }
 
     private suspend fun tickLoop() {
         while (scope.isActive) {
@@ -132,6 +146,10 @@ class BlockerAccessibilityService : AccessibilityService() {
             if (++updateTicks >= UPDATE_CHECK_EVERY_TICKS) {
                 updateTicks = 0
                 scope.launch { Updater.checkIfDue(this@BlockerAccessibilityService, UPDATE_INTERVAL_MS) }
+            }
+            if (++browserTicks >= BROWSER_REFRESH_TICKS) {
+                browserTicks = 0
+                browsers = installedBrowsers()
             }
             if (!power.isInteractive) continue
             evaluate()
@@ -363,6 +381,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         private const val EXPAND_COOLDOWN_MS = 3000L
         private const val FLUSH_EVERY_TICKS = 10
         private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60
+        private const val BROWSER_REFRESH_TICKS = 5 * 60
         private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
         private val IGNORED_PACKAGES = setOf("com.android.systemui")
 
