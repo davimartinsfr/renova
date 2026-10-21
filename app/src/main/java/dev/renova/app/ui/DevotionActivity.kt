@@ -1,6 +1,7 @@
 package dev.renova.app.ui
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -72,7 +73,7 @@ class DevotionActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        setContent { AppTheme { DevotionScreen(onClose = ::finish) } }
+        setContent { AppTheme { DevotionScreen(onClose = ::finish, onDone = ::finishReturning) } }
     }
 
     override fun onResume() {
@@ -93,11 +94,16 @@ class DevotionActivity : ComponentActivity() {
     }
 }
 
+/** Abre os 7 minutos; [returnTo] é o app bloqueado, quando vêm da tela de bloqueio (ver [fromBlockScreen]). */
+fun Context.startDevotion(returnTo: String? = null) {
+    startActivity(Intent(this, DevotionActivity::class.java).fromBlockScreen(returnTo))
+}
+
 internal data class PrayReading(val title: String, val verses: List<String>, val firstVerse: Int)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DevotionScreen(onClose: () -> Unit) {
+private fun DevotionScreen(onClose: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
     val store = remember { AppStore.get(context) }
     var started by rememberSaveable { mutableStateOf(false) }
@@ -125,7 +131,7 @@ private fun DevotionScreen(onClose: () -> Unit) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             when {
-                finished -> Finished(onClose)
+                finished -> Finished(onDone)
                 !started -> Intro { started = true }
                 else -> Running(elapsed, prayReading)
             }

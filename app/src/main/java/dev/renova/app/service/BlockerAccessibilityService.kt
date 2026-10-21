@@ -180,7 +180,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
         active = null
-        val blockedScreen = blockedScreenIntent(rule, reason, ruleIds)
+        val blockedScreen = blockedScreenIntent(target.packageName, rule, reason, ruleIds)
         if (rule.type.isSection) {
             // No Shorts/Reels basta voltar (o resto do app continua liberado); espera o app sair da seção.
             performGlobalAction(GLOBAL_ACTION_BACK)
@@ -196,12 +196,13 @@ class BlockerAccessibilityService : AccessibilityService() {
         scope.launch { flushUsage() }
     }
 
-    private fun blockedScreenIntent(rule: Rule, reason: String, ruleIds: List<String>): Intent =
+    private fun blockedScreenIntent(pkg: String, rule: Rule, reason: String, ruleIds: List<String>): Intent =
         // NO_USER_ACTION evita que o app de baixo receba o "usuário saiu", que é o gatilho do
         // picture-in-picture automático (YouTube e afins continuariam tocando numa janelinha).
         // Sair da tela de bloqueio já leva à tela inicial, então não é preciso apertar Home aqui.
         Intent(this, BlockedActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            .putExtra(BlockedActivity.EXTRA_PACKAGE, pkg)
             .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
             .putExtra(BlockedActivity.EXTRA_REASON, reason)
             .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
@@ -297,7 +298,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         val (rule, reason) = blocking.firstOrNull() ?: return
         pauseMedia()
         if (overlay.isShowing || pipNoticeDismissed == pkg) return
-        val blockedScreen = blockedScreenIntent(rule, reason.name, blocking.map { it.first.id })
+        val blockedScreen = blockedScreenIntent(pkg, rule, reason.name, blocking.map { it.first.id })
         overlay.show(
             blockedPackage = pkg,
             label = rule.label,

@@ -1,5 +1,6 @@
 package dev.renova.app.ui
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
@@ -71,14 +72,42 @@ fun LooseningDialog(action: String = "mudar esta regra", onDismiss: () -> Unit) 
     )
 }
 
-/** Abre a leitura de [option]; ao terminar, libera só as regras [ruleIds] (vazio: só a edição das regras). */
-fun Context.startReading(option: UnlockOption, ruleIds: List<String> = emptyList(), label: String? = null) {
+/**
+ * Abre a leitura de [option]; ao terminar, libera só as regras [ruleIds] (vazio: só a edição das regras).
+ * [returnTo]: o app bloqueado, quando a leitura sai da tela de bloqueio (ver [fromBlockScreen]).
+ */
+fun Context.startReading(option: UnlockOption, ruleIds: List<String> = emptyList(), label: String? = null, returnTo: String? = null) {
     startActivity(
         Intent(this, ReadingActivity::class.java)
             .putExtra(ReadingActivity.EXTRA_OPTION, option.name)
             .putExtra(ReadingActivity.EXTRA_RULE_IDS, ruleIds.toTypedArray())
-            .putExtra(ReadingActivity.EXTRA_LABEL, label),
+            .putExtra(ReadingActivity.EXTRA_LABEL, label)
+            .fromBlockScreen(returnTo),
     )
+}
+
+/** App para onde voltar ao concluir a leitura ou os 7 minutos abertos pela tela de bloqueio. */
+internal const val EXTRA_RETURN_TO = "return_to"
+
+/**
+ * A tela de bloqueio vive numa task escondida das Recentes, e reabrir o app bloqueado a relança limpando o
+ * que estiver por cima. A leitura e os 7 minutos abertos por ela vão então para a task do Renova: dá para
+ * voltar a eles pelas Recentes ou pelo ícone, e reabrir o app bloqueado não os destrói.
+ */
+internal fun Intent.fromBlockScreen(returnTo: String?): Intent {
+    if (returnTo == null) return this
+    return addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(EXTRA_RETURN_TO, returnTo)
+}
+
+/**
+ * Fecha a leitura ou os 7 minutos concluídos e, se vieram da tela de bloqueio, volta para o app liberado
+ * (como antes, quando fechar revelava a tela de bloqueio e ela se fechava sozinha).
+ */
+internal fun Activity.finishReturning() {
+    intent.getStringExtra(EXTRA_RETURN_TO)
+        ?.let { packageManager.getLaunchIntentForPackage(it) }
+        ?.let { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    finish()
 }
 
 /** Qual regra liberar, antes de escolher o tempo. As bloqueadas vêm primeiro. */

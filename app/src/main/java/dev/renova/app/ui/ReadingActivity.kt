@@ -77,7 +77,7 @@ class ReadingActivity : ComponentActivity() {
             ?: UnlockOption.CHAPTER
         val ruleIds = intent.getStringArrayExtra(EXTRA_RULE_IDS)?.toList().orEmpty()
         val label = intent.getStringExtra(EXTRA_LABEL)
-        setContent { AppTheme { ReadingScreen(option, ruleIds, label, onClose = ::finish) } }
+        setContent { AppTheme { ReadingScreen(option, ruleIds, label, onClose = ::finish, onDone = ::finishReturning) } }
     }
 
     override fun onResume() {
@@ -105,7 +105,7 @@ class ReadingActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReadingScreen(option: UnlockOption, ruleIds: List<String>, label: String?, onClose: () -> Unit) {
+private fun ReadingScreen(option: UnlockOption, ruleIds: List<String>, label: String?, onClose: () -> Unit, onDone: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val store = remember { AppStore.get(context) }
     val bible by produceState<Bible?>(null) { value = Bible.load(context) }
@@ -144,7 +144,7 @@ private fun ReadingScreen(option: UnlockOption, ruleIds: List<String>, label: St
                     unlockedUntil,
                     title = if (ruleIds.isEmpty() && option.allowsRuleEdits) "Pode alterar" else "Livre",
                     label = label,
-                    onClose = onClose,
+                    onClose = onDone,
                 )
                 b == null || pos == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 // O versículo avulso não mexe no plano de leitura.

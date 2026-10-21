@@ -63,8 +63,8 @@ class BlockedActivity : ComponentActivity() {
                     reason = intent.getStringExtra(EXTRA_REASON),
                     nextReading = nextReading,
                     onLeave = ::leave,
-                    onRead = { option -> startReading(option, ruleIds(), intent.getStringExtra(EXTRA_LABEL)) },
-                    onDevotion = { startActivity(Intent(this, DevotionActivity::class.java)) },
+                    onRead = { option -> startReading(option, ruleIds(), intent.getStringExtra(EXTRA_LABEL), returnTo = blockedPackage()) },
+                    onDevotion = { startDevotion(returnTo = blockedPackage()) },
                 )
             }
         }
@@ -98,6 +98,8 @@ class BlockedActivity : ComponentActivity() {
 
     private fun ruleIds(): List<String> = intent.getStringArrayExtra(EXTRA_RULE_IDS)?.toList().orEmpty()
 
+    private fun blockedPackage(): String? = intent.getStringExtra(EXTRA_PACKAGE)
+
     private fun leave() {
         val type = TargetType.entries.firstOrNull { it.name == intent.getStringExtra(EXTRA_TYPE) }
         if (type?.isSection != true) {
@@ -110,6 +112,8 @@ class BlockedActivity : ComponentActivity() {
         const val EXTRA_LABEL = "label"
         const val EXTRA_REASON = "reason"
         const val EXTRA_TYPE = "type"
+        /** App bloqueado, para voltar a ele depois da leitura. */
+        const val EXTRA_PACKAGE = "package"
         /** Regras que bloqueiam o app: ler libera todas elas. */
         const val EXTRA_RULE_IDS = "rule_ids"
 
