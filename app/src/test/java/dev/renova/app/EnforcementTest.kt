@@ -109,6 +109,23 @@ class EnforcementTest {
         assertNull(Enforcement.withLastUrl(ActiveTarget("org.mozilla.firefox"), isBrowser = true, last = last).first.url)
     }
 
+    @Test fun lastUrlSurvivesSystemWindowsAndOwnApp() {
+        val chrome = "com.android.chrome"
+        val keep = setOf("com.android.systemui", "dev.renova.app")
+        val (_, last) = Enforcement.withLastUrl(ActiveTarget(chrome, url = "m.youtube.com/watch"), true, null, keep)
+        fun backToChromeAfter(pkg: String, isBrowser: Boolean = false): String? {
+            val (_, kept) = Enforcement.withLastUrl(ActiveTarget(pkg), isBrowser, last, keep)
+            return Enforcement.withLastUrl(ActiveTarget(chrome), true, kept, keep).first.url
+        }
+        // Cortina de notificações e o próprio Renova passam pela frente sem apagar a URL.
+        assertEquals("m.youtube.com/watch", backToChromeAfter("com.android.systemui"))
+        assertEquals("m.youtube.com/watch", backToChromeAfter("dev.renova.app"))
+        // Outro app ou outro navegador esquecem.
+        assertNull(backToChromeAfter("com.google.android.deskclock"))
+        assertNull(backToChromeAfter("org.mozilla.firefox", isBrowser = true))
+        assertNull(Enforcement.withLastUrl(ActiveTarget("org.mozilla.firefox"), true, last, keep).first.url)
+    }
+
     @Test fun tickCountsRealTimeUpToTwoSeconds() {
         assertEquals(1_000L, Enforcement.tickMs(prevTickAt = 0, now = 50_000))
         assertEquals(1_027L, Enforcement.tickMs(prevTickAt = 10_000, now = 11_027))

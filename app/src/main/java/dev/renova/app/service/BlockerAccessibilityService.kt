@@ -124,7 +124,9 @@ class BlockerAccessibilityService : AccessibilityService() {
         syncOverlay()
         val root = rootInActiveWindow ?: return false
         val detected = TargetDetector.detect(root, browsers) ?: return false
-        val (target, last) = Enforcement.withLastUrl(detected, TargetDetector.isBrowser(detected.packageName, browsers), lastUrl)
+        val (target, last) = Enforcement.withLastUrl(
+            detected, TargetDetector.isBrowser(detected.packageName, browsers), lastUrl, keepFor = IGNORED_PACKAGES + packageName,
+        )
         lastUrl = last
         ownAppInFront = target.packageName == packageName
         active = target.takeIf(::isCounted)

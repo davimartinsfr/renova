@@ -105,9 +105,17 @@ object Enforcement {
     /**
      * A barra do navegador some no vídeo em tela cheia e ao rolar a página, e aí [target] chega sem URL.
      * Enquanto o mesmo navegador continua na frente, vale a última URL lida; outro app na frente esquece ela.
+     * Os pacotes de [keepFor] (janelas do sistema, como a cortina, e o próprio Renova) passam pela frente
+     * sem esquecer: a barra continua escondida ao voltar, e a URL não seria relida.
      * Devolve o alvo a usar e o que guardar para a próxima leitura.
      */
-    fun withLastUrl(target: ActiveTarget, isBrowser: Boolean, last: LastUrl?): Pair<ActiveTarget, LastUrl?> = when {
+    fun withLastUrl(
+        target: ActiveTarget,
+        isBrowser: Boolean,
+        last: LastUrl?,
+        keepFor: Set<String> = emptySet(),
+    ): Pair<ActiveTarget, LastUrl?> = when {
+        target.packageName in keepFor -> target to last
         !isBrowser -> target to null
         target.url != null -> target to LastUrl(target.packageName, target.url)
         last?.packageName == target.packageName -> target.copy(url = last.url) to last
