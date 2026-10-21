@@ -31,6 +31,9 @@ class MainActivity : ComponentActivity() {
                 var onboarding by rememberSaveable { mutableStateOf(OnboardingPrefs.shouldShow(this)) }
                 val current = editing
                 if (onboarding) {
+                    // Aberto pelas Configurações, o Voltar no 1º passo volta para elas em vez de fechar o app.
+                    // O BackHandler de dentro do tutorial (passos seguintes) vem depois e tem prioridade.
+                    BackHandler(enabled = settings) { onboarding = false }
                     OnboardingScreen(onFinish = { createRule ->
                         OnboardingPrefs.setDone(this)
                         onboarding = false
