@@ -124,7 +124,8 @@ private fun DevotionScreen(onClose: () -> Unit, onDone: () -> Unit) {
                 label = "7 minutos com o Senhor",
                 navIcon = Icons.Default.Close,
                 navLabel = "Fechar",
-                onNav = onClose,
+                // Concluídos, o X faz o mesmo que "Fechar": volta ao app liberado.
+                onNav = if (finished) onDone else onClose,
                 modifier = Modifier.statusBarsPadding(),
             )
         },

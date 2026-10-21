@@ -131,7 +131,8 @@ private fun ReadingScreen(option: UnlockOption, ruleIds: List<String>, label: St
                 },
                 navIcon = Icons.Default.Close,
                 navLabel = "Fechar",
-                onNav = onClose,
+                // Concluída, o X faz o mesmo que "Fechar": volta ao app liberado.
+                onNav = if (unlockedUntil > 0) onDone else onClose,
                 modifier = Modifier.statusBarsPadding(),
             )
         },
