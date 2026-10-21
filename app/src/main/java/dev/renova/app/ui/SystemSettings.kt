@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.renova.app.service.BlockerAccessibilityService
 
@@ -79,14 +80,24 @@ internal fun rememberPermissionState(): PermissionState {
         PermissionState(
             serviceOn = BlockerAccessibilityService.isEnabled(context),
             batteryOk = context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName),
-            notifOk = Build.VERSION.SDK_INT < 33 ||
+            notifOk = notificationsOk(
+                Build.VERSION.SDK_INT,
+                NotificationManagerCompat.from(context).areNotificationsEnabled(),
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
+            ),
             popupNeeded = isXiaomi(),
             popupOk = if (isXiaomi()) backgroundPopupAllowed(context) else true,
             requestNotifications = { requestNotifications(context, launcher) },
         )
     }
 }
+
+/**
+ * Notificações do Renova ligadas. Do Android 8 ao 12 não há permissão para pedir, mas a pessoa pode
+ * desligá-las nas configurações; do 13 em diante valem as duas coisas.
+ */
+internal fun notificationsOk(sdk: Int, enabled: Boolean, permissionGranted: Boolean): Boolean =
+    enabled && (sdk < 33 || permissionGranted)
 
 /** Chave que o app Configurações usa para rolar até um item e destacá-lo. */
 private const val FRAGMENT_ARGS_KEY = ":settings:fragment_args_key"
@@ -149,8 +160,11 @@ internal fun requestIgnoreBattery(context: Context) {
 internal fun requestNotifications(context: Context, launcher: ActivityResultLauncher<String>) {
     val prefs = context.getSharedPreferences("permissions", Context.MODE_PRIVATE)
     val activity = context.findActivity()
-    val blocked = prefs.getBoolean("notif_asked", false) && activity != null &&
-        !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+    // Antes do Android 13 não existe o pedido: só dá para ligar nas configurações.
+    val blocked = Build.VERSION.SDK_INT < 33 || (
+        prefs.getBoolean("notif_asked", false) && activity != null &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+        )
     if (blocked) {
         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
         context.startFirstAvailable(intent, appDetails(context))

@@ -10,11 +10,14 @@ import androidx.core.app.ActivityOptionsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.renova.app.service.BlockerAccessibilityService
 import dev.renova.app.ui.openAccessibilitySettings
+import dev.renova.app.ui.notificationsOk
 import dev.renova.app.ui.requestNotifications
 import dev.renova.app.ui.startFirstAvailable
 import android.content.Intent
 import org.robolectric.shadows.ShadowToast
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,5 +64,12 @@ class SystemSettingsTest {
         shadowOf(activity.application).checkActivities(true)
         activity.startFirstAvailable(Intent("dev.renova.nao.existe"), Intent("dev.renova.tambem.nao"))
         assertEquals("Não foi possível abrir.", ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test fun notificationsTurnedOffInSettingsAreNotOkOnOldAndroid() {
+        assertFalse(notificationsOk(sdk = 30, enabled = false, permissionGranted = false))
+        assertTrue(notificationsOk(sdk = 30, enabled = true, permissionGranted = false))
+        assertFalse(notificationsOk(sdk = 34, enabled = true, permissionGranted = false))
+        assertTrue(notificationsOk(sdk = 34, enabled = true, permissionGranted = true))
     }
 }
