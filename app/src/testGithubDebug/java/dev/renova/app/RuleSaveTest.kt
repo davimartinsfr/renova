@@ -31,6 +31,10 @@ class RuleSaveTest {
         val save = compose.onNodeWithText("Salvar").performScrollTo()
         save.performClick()
         save.performClick()
+        // A gravação do DataStore roda em IO: waitForIdle sozinho não espera por ela.
+        compose.waitUntil(5_000) { runBlocking { store.rules.first().size } == before + 1 }
+        // Folga para um segundo toque, se gravasse, aparecer na lista.
+        Thread.sleep(300)
         compose.waitForIdle()
         assertEquals(before + 1, runBlocking { store.rules.first().size })
     }
