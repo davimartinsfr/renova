@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -139,6 +140,9 @@ private fun DevotionScreen(onClose: () -> Unit, onDone: () -> Unit) {
         }
     }
 
+    // O som toca neste escopo, que vive enquanto a tela existir: o do cronômetro é cancelado quando
+    // finished vira true, e cortava o som do fim dos 7 minutos.
+    val toneScope = rememberCoroutineScope()
     if (started && !finished) {
         val lifecycle = LocalLifecycleOwner.current.lifecycle
         val context = LocalContext.current
@@ -149,7 +153,7 @@ private fun DevotionScreen(onClose: () -> Unit, onDone: () -> Unit) {
                     val before = Devotion.stepAt(elapsed)?.first
                     elapsed++
                     // Aviso sonoro curto a cada troca de etapa, sem atrasar o cronômetro.
-                    if (Devotion.stepAt(elapsed)?.first != before) launch { playStepTone(context) }
+                    if (Devotion.stepAt(elapsed)?.first != before) toneScope.launch { playStepTone(context) }
                 }
                 store.setDevotionDone(Devotion.dayKey(LocalDateTime.now()))
                 finished = true
