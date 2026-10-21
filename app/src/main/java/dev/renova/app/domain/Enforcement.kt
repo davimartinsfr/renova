@@ -135,4 +135,21 @@ object Enforcement {
      */
     fun leadingFirst(blocking: List<Pair<Rule, BlockReason>>): List<Pair<Rule, BlockReason>> =
         blocking.sortedBy { it.first.type.isSection }
+
+    /**
+     * Notificações de liberação ([tags], ids de regra) que não valem mais: a regra foi apagada ou desligada,
+     * a liberação acabou, ou os 7 minutos pendentes bloqueiam de novo antes do fim. Tags que não são id de
+     * regra (as de versões que juntavam vários ids numa só) também saem.
+     */
+    fun staleUnlockNotices(
+        tags: Collection<String>,
+        rules: List<Rule>,
+        unlocks: Map<String, Long>,
+        nowMs: Long,
+        devotionPending: Boolean,
+    ): List<String> {
+        if (devotionPending) return tags.toList()
+        val enabled = rules.filter { it.enabled }.map { it.id }.toSet()
+        return tags.filter { it !in enabled || (unlocks[it] ?: 0L) <= nowMs }
+    }
 }

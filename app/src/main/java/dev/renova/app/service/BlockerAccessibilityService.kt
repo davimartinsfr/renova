@@ -30,6 +30,7 @@ import dev.renova.app.domain.RuleEngine
 import dev.renova.app.domain.TargetType
 import dev.renova.app.ui.BlockedActivity
 import dev.renova.app.ui.DevotionActivity
+import dev.renova.app.ui.Notifications
 import dev.renova.app.ui.ReadingActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +62,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     /** Navegadores instalados, para achar a barra de endereço nos que o TargetDetector não conhece. */
     private var browsers: Set<String> = emptySet()
     private var browserTicks = 0
+    private var noticeTicks = 0
     /** Última URL do navegador da frente, para quando a barra some (ver [Enforcement.withLastUrl]). */
     private var lastUrl: LastUrl? = null
     private var usageDate = LocalDate.now().toString()
@@ -141,6 +143,15 @@ class BlockerAccessibilityService : AccessibilityService() {
         .mapNotNull { window -> window.root?.let { TargetDetector.detect(it, browsers) } }
         .filter(::isCounted)
 
+    /** Tira a contagem regressiva das regras que voltaram a bloquear antes do fim ou foram apagadas. */
+    private fun cancelStaleUnlockNotices() {
+        val tags = runCatching { Notifications.unlockTags(this) }.getOrDefault(emptyList())
+        if (tags.isEmpty()) return
+        val devotionPending = devotionEnabled && !Devotion.isDone(devotionDoneDay, LocalDateTime.now())
+        Enforcement.staleUnlockNotices(tags, rules, unlocks, System.currentTimeMillis(), devotionPending)
+            .forEach { Notifications.cancelUnlock(this, it) }
+    }
+
     /** Apps que abrem um link https qualquer: os navegadores (os apps com links próprios só abrem os seus). */
     private fun installedBrowsers(): Set<String> {
         val link = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).addCategory(Intent.CATEGORY_BROWSABLE)
@@ -157,6 +168,10 @@ class BlockerAccessibilityService : AccessibilityService() {
             if (++updateTicks >= UPDATE_CHECK_EVERY_TICKS) {
                 updateTicks = 0
                 scope.launch { Updater.checkIfDue(this@BlockerAccessibilityService, UPDATE_INTERVAL_MS) }
+            }
+            if (++noticeTicks >= NOTICE_CHECK_TICKS) {
+                noticeTicks = 0
+                cancelStaleUnlockNotices()
             }
             if (++browserTicks >= BROWSER_REFRESH_TICKS) {
                 browserTicks = 0
@@ -407,6 +422,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         private const val FLUSH_EVERY_TICKS = 10
         private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60
         private const val BROWSER_REFRESH_TICKS = 5 * 60
+        private const val NOTICE_CHECK_TICKS = 5
         private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
         private val IGNORED_PACKAGES = setOf("com.android.systemui")
 

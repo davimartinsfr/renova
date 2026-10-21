@@ -15,9 +15,12 @@ object Notifications {
     private const val CHANNEL_UNLOCK = "unlock"
     private const val ID_UNLOCK = 1
 
-    /** Notificação com contagem regressiva da liberação de [label]; some sozinha quando expira. Uma por app. */
+    /**
+     * Notificação com contagem regressiva da liberação da regra [ruleId]; some sozinha quando expira.
+     * Uma por regra: o id da regra é a tag, e ler de novo para a mesma regra só atualiza a dela.
+     */
     @android.annotation.SuppressLint("MissingPermission") // permissão verificada logo no início
-    fun showUnlock(context: Context, until: Long, label: String, tag: String) {
+    fun showUnlock(context: Context, until: Long, label: String, ruleId: String) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
@@ -35,6 +38,14 @@ object Notifications {
             .setTimeoutAfter(until - System.currentTimeMillis())
             .setOngoing(true)
             .build()
-        NotificationManagerCompat.from(context).notify(tag, ID_UNLOCK, notification)
+        NotificationManagerCompat.from(context).notify(ruleId, ID_UNLOCK, notification)
     }
+
+    /** Tags (ids de regra) das notificações de liberação na tela. */
+    fun unlockTags(context: Context): List<String> =
+        context.getSystemService(NotificationManager::class.java).activeNotifications
+            .filter { it.id == ID_UNLOCK && it.tag != null }
+            .map { it.tag }
+
+    fun cancelUnlock(context: Context, ruleId: String) = NotificationManagerCompat.from(context).cancel(ruleId, ID_UNLOCK)
 }

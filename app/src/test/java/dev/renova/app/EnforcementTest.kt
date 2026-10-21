@@ -133,4 +133,16 @@ class EnforcementTest {
         val led = Enforcement.leadingFirst(listOf(shorts to BlockReason.ALWAYS, app to BlockReason.LIMIT))
         assertEquals(listOf("y", "s"), led.map { it.first.id })
     }
+
+    @Test fun unlockNoticesGoAwayWhenTheUnlockNoLongerHolds() {
+        val a = Rule("a", TargetType.APP, youtube, "YouTube", dailyLimitMin = 0)
+        val b = Rule("b", TargetType.APP, "com.netflix.mediaclient", "Netflix", dailyLimitMin = 0, enabled = false)
+        val unlocks = mapOf("a" to 2_000L, "b" to 2_000L, "gone" to 2_000L)
+        // Desligada, apagada e a tag antiga com vários ids saem; a liberação em curso fica.
+        assertEquals(listOf("b", "gone", "a,b"), Enforcement.staleUnlockNotices(listOf("a", "b", "gone", "a,b"), listOf(a, b), unlocks, 1_000, false))
+        // Acabou o tempo.
+        assertEquals(listOf("a"), Enforcement.staleUnlockNotices(listOf("a"), listOf(a), unlocks, 2_000, false))
+        // 7 minutos pendentes: nenhuma liberação vale.
+        assertEquals(listOf("a"), Enforcement.staleUnlockNotices(listOf("a"), listOf(a), unlocks, 1_000, true))
+    }
 }

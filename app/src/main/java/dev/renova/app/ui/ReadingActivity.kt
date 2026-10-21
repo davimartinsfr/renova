@@ -61,6 +61,7 @@ import dev.renova.app.domain.BiblePosition
 import dev.renova.app.domain.Reading
 import dev.renova.app.domain.UnlockOption
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -117,7 +118,11 @@ private fun ReadingScreen(option: UnlockOption, ruleIds: List<String>, label: St
 
     suspend fun finishReading() {
         unlockedUntil = store.grantUnlock(option, ruleIds)
-        if (ruleIds.isNotEmpty()) Notifications.showUnlock(context, unlockedUntil, label ?: "App", ruleIds.sorted().joinToString(","))
+        val unlocks = store.unlocks.first()
+        val rules = store.rules.first().associateBy { it.id }
+        for (id in ruleIds) {
+            Notifications.showUnlock(context, unlocks[id] ?: unlockedUntil, rules[id]?.label ?: label ?: "App", id)
+        }
     }
 
     Scaffold(
