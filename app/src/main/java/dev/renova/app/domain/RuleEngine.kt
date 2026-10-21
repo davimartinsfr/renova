@@ -31,6 +31,37 @@ object RuleEngine {
         return null
     }
 
+    /** Se [rule] está liberada por leitura em [nowMs]; [unlocks] guarda até quando, por id de regra. */
+    fun isUnlocked(rule: Rule, unlocks: Map<String, Long>, nowMs: Long): Boolean = (unlocks[rule.id] ?: 0L) > nowMs
+
+    /**
+     * Regras que bloqueiam [target] agora, com o motivo. Enquanto os 7 minutos estão pendentes
+     * ([devotionPending]), todo alvo das regras fica bloqueado por eles e as liberações por leitura não valem;
+     * fora isso, cada regra só cede à própria liberação.
+     */
+    fun blocking(
+        rules: List<Rule>,
+        target: ActiveTarget,
+        usedSeconds: Map<String, Long>,
+        now: LocalDateTime,
+        nowMs: Long,
+        unlocks: Map<String, Long>,
+        devotionPending: Boolean,
+    ): List<Pair<Rule, BlockReason>> {
+        val matched = rules.filter { matches(it, target) }
+        if (devotionPending) return matched.map { it to BlockReason.DEVOTION }
+        return matched.mapNotNull { rule ->
+            blockReason(rule, usedSeconds[rule.id] ?: 0L, now, isUnlocked(rule, unlocks, nowMs))?.let { rule to it }
+        }
+    }
+
+    /**
+     * Regras em uso neste segundo: as que casam com algum alvo na tela (o app em primeiro plano,
+     * um vídeo em picture-in-picture, a outra metade da tela dividida). Cada regra conta uma vez só.
+     */
+    fun inUse(rules: List<Rule>, targets: Collection<ActiveTarget>): List<Rule> =
+        rules.filter { rule -> targets.any { matches(rule, it) } }
+
     fun matches(rule: Rule, active: ActiveTarget): Boolean {
         if (!rule.enabled) return false
         return when (rule.type) {

@@ -63,7 +63,7 @@ class BlockedActivity : ComponentActivity() {
                     reason = intent.getStringExtra(EXTRA_REASON),
                     nextReading = nextReading,
                     onLeave = ::leave,
-                    onRead = ::startReading,
+                    onRead = { option -> startReading(option, ruleIds(), intent.getStringExtra(EXTRA_LABEL)) },
                     onDevotion = { startActivity(Intent(this, DevotionActivity::class.java)) },
                 )
             }
@@ -84,11 +84,13 @@ class BlockedActivity : ComponentActivity() {
             val resolved = if (intent.getStringExtra(EXTRA_REASON) == BlockReason.DEVOTION.name) {
                 !store.devotionEnabled.first() || Devotion.isDone(store.devotionDoneDay.first(), LocalDateTime.now())
             } else {
-                store.isUnlocked()
+                ruleIds().let { it.isNotEmpty() && store.isUnlocked(it) }
             }
             if (resolved) finish()
         }
     }
+
+    private fun ruleIds(): List<String> = intent.getStringArrayExtra(EXTRA_RULE_IDS)?.toList().orEmpty()
 
     private fun leave() {
         val type = TargetType.entries.firstOrNull { it.name == intent.getStringExtra(EXTRA_TYPE) }
@@ -102,6 +104,8 @@ class BlockedActivity : ComponentActivity() {
         const val EXTRA_LABEL = "label"
         const val EXTRA_REASON = "reason"
         const val EXTRA_TYPE = "type"
+        /** Regras que bloqueiam o app: ler libera todas elas. */
+        const val EXTRA_RULE_IDS = "rule_ids"
     }
 }
 

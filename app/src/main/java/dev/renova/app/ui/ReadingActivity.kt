@@ -75,17 +75,22 @@ class ReadingActivity : ComponentActivity() {
         val option = intent.getStringExtra(EXTRA_OPTION)
             ?.let { name -> UnlockOption.entries.firstOrNull { it.name == name } }
             ?: UnlockOption.CHAPTER
-        setContent { AppTheme { ReadingScreen(option, onClose = ::finish) } }
+        val ruleIds = intent.getStringArrayExtra(EXTRA_RULE_IDS)?.toList().orEmpty()
+        val label = intent.getStringExtra(EXTRA_LABEL)
+        setContent { AppTheme { ReadingScreen(option, ruleIds, label, onClose = ::finish) } }
     }
 
     companion object {
         const val EXTRA_OPTION = "option"
+        /** Regras que a leitura libera; vazio quando a leitura é só para editar as regras. */
+        const val EXTRA_RULE_IDS = "rule_ids"
+        const val EXTRA_LABEL = "label"
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
+private fun ReadingScreen(option: UnlockOption, ruleIds: List<String>, label: String?, onClose: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val store = remember { AppStore.get(context) }
     val bible by produceState<Bible?>(null) { value = Bible.load(context) }
@@ -96,8 +101,8 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
     val screenScope = rememberCoroutineScope()
 
     suspend fun finishReading() {
-        unlockedUntil = store.grantUnlock(option)
-        Notifications.showUnlock(context, unlockedUntil)
+        unlockedUntil = store.grantUnlock(option, ruleIds)
+        if (ruleIds.isNotEmpty()) Notifications.showUnlock(context, unlockedUntil, label ?: "App", ruleIds.sorted().joinToString(","))
     }
 
     Scaffold(
@@ -120,7 +125,12 @@ private fun ReadingScreen(option: UnlockOption, onClose: () -> Unit) {
             val b = bible
             val pos = position
             when {
-                unlockedUntil > 0 -> Finished(unlockedUntil, onClose)
+                unlockedUntil > 0 -> Finished(
+                    unlockedUntil,
+                    title = if (ruleIds.isEmpty() && option.allowsRuleEdits) "Pode alterar" else "Livre",
+                    label = label,
+                    onClose = onClose,
+                )
                 b == null || pos == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 // O versículo avulso não mexe no plano de leitura.
                 goal == 0 -> VerseReader(b) { finishReading() }
@@ -288,7 +298,7 @@ private fun CompleteBar(remainingSeconds: Int, hint: String, enabled: Boolean, o
 }
 
 @Composable
-private fun Finished(until: Long, onClose: () -> Unit) {
+private fun Finished(until: Long, title: String, label: String?, onClose: () -> Unit) {
     val remaining by produceState(until - System.currentTimeMillis(), until) {
         while (value > 0) {
             delay(1000)
@@ -297,7 +307,15 @@ private fun Finished(until: Long, onClose: () -> Unit) {
     }
     Column(Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            Text("Livre · ${formatCountdown(remaining)}", style = MaterialTheme.typography.displaySmall)
+            Text("$title · ${formatCountdown(remaining)}", style = MaterialTheme.typography.displaySmall)
+            if (label != null) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
             Spacer(Modifier.height(20.dp))
             Text("“Lâmpada para os meus pés é a tua palavra e, luz para os meus caminhos.”", fontFamily = Gelasio, fontSize = 22.sp, lineHeight = 32.sp)
             Text(

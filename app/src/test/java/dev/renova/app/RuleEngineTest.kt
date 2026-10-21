@@ -107,4 +107,80 @@ class RuleEngineTest {
         assertTrue(RuleEngine.isLoosening(base, base.copy(target = "com.other")))
         assertFalse(RuleEngine.isLoosening(base.copy(enabled = false), null))
     }
+
+}
+
+/** Contagem de tempo e bloqueio com vários alvos na tela e liberações por regra. */
+class UsageAndUnlockTest {
+    private val now = LocalDateTime.of(2026, 10, 21, 15, 0)
+    private val nowMs = 1_000_000L
+
+    private val youtubeApp = Rule("yt", TargetType.APP, "com.google.android.youtube", "YouTube", dailyLimitMin = 30)
+    private val shorts = Rule("sh", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 0)
+    private val netflix = Rule("nf", TargetType.APP, "com.netflix.mediaclient", "Netflix", dailyLimitMin = 60)
+    private val reddit = Rule("rd", TargetType.APP, "com.reddit.frontpage", "Reddit", dailyLimitMin = 15)
+    private val rules = listOf(youtubeApp, shorts, netflix, reddit)
+
+    private val youtubeVideo = ActiveTarget("com.google.android.youtube")
+    private val youtubeShorts = ActiveTarget("com.google.android.youtube", isShorts = true)
+    private val netflixPip = ActiveTarget("com.netflix.mediaclient")
+    private val launcher = ActiveTarget("com.google.android.apps.nexuslauncher")
+    private val redditApp = ActiveTarget("com.reddit.frontpage")
+
+    private fun blocking(target: ActiveTarget, used: Map<String, Long> = emptyMap(), unlocks: Map<String, Long> = emptyMap(), devotion: Boolean = false) =
+        RuleEngine.blocking(rules, target, used, now, nowMs, unlocks, devotion).map { it.first.id to it.second }
+
+    @Test fun pipVideoCountsWhileAnotherAppIsInFront() {
+        // Netflix em picture-in-picture por cima da tela inicial: o tempo é da Netflix.
+        assertEquals(listOf("nf"), RuleEngine.inUse(rules, listOf(launcher, netflixPip)).map { it.id })
+        // YouTube em PiP enquanto o Reddit está aberto: contam os dois.
+        assertEquals(listOf("yt", "rd"), RuleEngine.inUse(rules, listOf(redditApp, youtubeVideo)).map { it.id })
+    }
+
+    @Test fun ruleSeenInTwoWindowsCountsOnce() {
+        assertEquals(listOf("yt"), RuleEngine.inUse(rules, listOf(youtubeVideo, youtubeVideo)).map { it.id })
+    }
+
+    @Test fun nothingOnScreenFromTheRulesCountsNothing() {
+        assertTrue(RuleEngine.inUse(rules, listOf(launcher)).isEmpty())
+        assertTrue(RuleEngine.inUse(listOf(reddit.copy(enabled = false)), listOf(redditApp)).isEmpty())
+    }
+
+    @Test fun unlockedRuleStillCountsTime() {
+        // A liberação não pausa o contador: o tempo livre gasta o limite do dia.
+        val unlocks = mapOf("rd" to nowMs + 60_000)
+        assertEquals(listOf("rd"), RuleEngine.inUse(rules, listOf(redditApp)).map { it.id })
+        assertTrue(blocking(redditApp, mapOf("rd" to 20 * 60L), unlocks).isEmpty())
+        // Acabou a liberação: com 20 min usados de 15, bloqueia de novo.
+        assertEquals(listOf("rd" to BlockReason.LIMIT), blocking(redditApp, mapOf("rd" to 20 * 60L), mapOf("rd" to nowMs)))
+    }
+
+    @Test fun unlockFreesOnlyItsRule() {
+        val used = mapOf("rd" to 15 * 60L, "nf" to 60 * 60L)
+        val unlocks = mapOf("rd" to nowMs + 60_000)
+        assertTrue(blocking(redditApp, used, unlocks).isEmpty())
+        assertEquals(listOf("nf" to BlockReason.LIMIT), blocking(netflixPip, used, unlocks))
+    }
+
+    @Test fun appWithTwoRulesNeedsBothUnlocked() {
+        // Shorts casa com a regra do Shorts e com a do app YouTube.
+        val used = mapOf("yt" to 30 * 60L)
+        assertEquals(listOf("yt" to BlockReason.LIMIT, "sh" to BlockReason.LIMIT), blocking(youtubeShorts, used))
+        assertEquals(listOf("yt" to BlockReason.LIMIT), blocking(youtubeShorts, used, mapOf("sh" to nowMs + 1)))
+        assertTrue(blocking(youtubeShorts, used, mapOf("sh" to nowMs + 1, "yt" to nowMs + 1)).isEmpty())
+        // Vídeo normal do YouTube não é Shorts: só a regra do app.
+        assertEquals(listOf("yt" to BlockReason.LIMIT), blocking(youtubeVideo, used))
+    }
+
+    @Test fun devotionIgnoresUnlocks() {
+        val unlocks = rules.associate { it.id to nowMs + 60_000 }
+        assertEquals(listOf("rd" to BlockReason.DEVOTION), blocking(redditApp, unlocks = unlocks, devotion = true))
+        assertTrue(blocking(launcher, devotion = true).isEmpty())
+    }
+
+    @Test fun unlockEndsExactlyAtItsTime() {
+        assertTrue(RuleEngine.isUnlocked(reddit, mapOf("rd" to nowMs + 1), nowMs))
+        assertFalse(RuleEngine.isUnlocked(reddit, mapOf("rd" to nowMs), nowMs))
+        assertFalse(RuleEngine.isUnlocked(reddit, emptyMap(), nowMs))
+    }
 }

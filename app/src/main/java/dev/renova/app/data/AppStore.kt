@@ -39,7 +39,9 @@ class AppStore private constructor(context: Context) {
         val RULES = stringPreferencesKey("rules")
         val USAGE_DATE = stringPreferencesKey("usage_date")
         val USAGE = stringPreferencesKey("usage")
+        /** Liberação geral das versões até a 1.11; agora cada regra tem a sua em [UNLOCKS]. */
         val UNLOCK_UNTIL = longPreferencesKey("unlock_until")
+        val UNLOCKS = stringPreferencesKey("unlocks")
         val BIBLE_BOOK = intPreferencesKey("bible_book")
         val BIBLE_CHAPTER = intPreferencesKey("bible_chapter")
         val BIBLE_ROUNDS = intPreferencesKey("bible_rounds")
@@ -67,7 +69,18 @@ class AppStore private constructor(context: Context) {
         )
     }
 
-    val unlockUntil: Flow<Long> = store.data.map { it[Keys.UNLOCK_UNTIL] ?: 0L }
+    /**
+     * Até quando cada regra está liberada por leitura, por id. Uma liberação geral ainda em curso,
+     * de antes da atualização, vale para todas as regras até acabar.
+     */
+    val unlocks: Flow<Map<String, Long>> = store.data.map { it.unlocks(System.currentTimeMillis()) }
+
+    private fun Preferences.unlocks(nowMs: Long): Map<String, Long> {
+        val saved = this[Keys.UNLOCKS]?.let { json.decodeFromString<Map<String, Long>>(it) }.orEmpty()
+        val legacy = this[Keys.UNLOCK_UNTIL] ?: 0L
+        if (legacy <= nowMs) return saved
+        return saved + rules().associate { it.id to maxOf(legacy, saved[it.id] ?: 0L) }
+    }
 
     val biblePosition: Flow<BiblePosition> = store.data.map { it.position() }
 
@@ -180,7 +193,12 @@ class AppStore private constructor(context: Context) {
         p[Keys.USAGE] = json.encodeToString(usage.seconds)
     }
 
-    suspend fun isUnlocked(): Boolean = unlockUntil.first() > System.currentTimeMillis()
+    /** Se todas as regras [ruleIds] estão liberadas por leitura agora. */
+    suspend fun isUnlocked(ruleIds: Collection<String>): Boolean {
+        val now = System.currentTimeMillis()
+        val unlocks = unlocks.first()
+        return ruleIds.all { (unlocks[it] ?: 0L) > now }
+    }
 
     suspend fun isUnlockedForEdits(): Boolean = editUnlockUntil.first() > System.currentTimeMillis()
 
@@ -188,18 +206,34 @@ class AppStore private constructor(context: Context) {
     @VisibleForTesting
     internal suspend fun clearEditUnlock() = store.edit { it.remove(Keys.EDIT_UNLOCK_UNTIL) }
 
-    suspend fun grantUnlock(option: UnlockOption): Long {
+    /**
+     * Libera as regras [ruleIds] pelo tempo de [option] (as outras continuam como estão) e, se a leitura
+     * foi de capítulos, abre a janela de edição das regras. Devolve até quando vale a liberação.
+     */
+    suspend fun grantUnlock(option: UnlockOption, ruleIds: Collection<String>): Long {
         var until = 0L
         store.edit { p ->
             val now = System.currentTimeMillis()
-            until = Reading.unlockUntil(option, p[Keys.UNLOCK_UNTIL] ?: 0L, now)
-            p[Keys.UNLOCK_UNTIL] = until
+            val current = p.unlocks(now).filterValues { it > now }
+            val updated = current + ruleIds.associateWith { Reading.unlockUntil(option, current[it] ?: 0L, now) }
+            p[Keys.UNLOCKS] = json.encodeToString(updated)
+            // A liberação geral antiga já foi copiada para as regras acima.
+            p.remove(Keys.UNLOCK_UNTIL)
             if (option.allowsRuleEdits) {
                 p[Keys.EDIT_UNLOCK_UNTIL] = Reading.unlockUntil(option, p[Keys.EDIT_UNLOCK_UNTIL] ?: 0L, now)
             }
+            until = ruleIds.maxOfOrNull { updated.getValue(it) } ?: Reading.unlockUntil(option, 0L, now)
         }
         return until
     }
+
+    /** Apaga todas as liberações por leitura. Só para testes. */
+    @VisibleForTesting
+    internal suspend fun clearUnlocks() = store.edit { it.remove(Keys.UNLOCKS); it.remove(Keys.UNLOCK_UNTIL) }
+
+    /** Grava a liberação geral como as versões até a 1.11 gravavam. Só para testes. */
+    @VisibleForTesting
+    internal suspend fun setLegacyUnlock(until: Long) = store.edit { it[Keys.UNLOCK_UNTIL] = until }
 
     /** Muda o próximo capítulo do plano (base 0). Mantém voltas e capítulos lidos. */
     suspend fun setPosition(book: Int, chapter: Int) = store.edit { p ->

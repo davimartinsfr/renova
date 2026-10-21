@@ -61,7 +61,7 @@ class SettingsTest {
     }
 
     @Test fun turningDevotionOffWorksAfterReading() {
-        runBlocking { store.setDevotionEnabled(true); store.grantUnlock(dev.renova.app.domain.UnlockOption.CHAPTER) }
+        runBlocking { store.setDevotionEnabled(true); store.grantUnlock(dev.renova.app.domain.UnlockOption.CHAPTER, emptyList()) }
         compose.setContent { AppTheme { SettingsScreen {} } }
         compose.onNode(androidx.compose.ui.test.isToggleable()).performClick()
         compose.waitUntil(5_000) { !runBlocking { store.devotionEnabled.first() } }

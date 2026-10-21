@@ -15,9 +15,9 @@ object Notifications {
     private const val CHANNEL_UNLOCK = "unlock"
     private const val ID_UNLOCK = 1
 
-    /** Notificação com contagem regressiva do desbloqueio; some sozinha quando expira. */
+    /** Notificação com contagem regressiva da liberação de [label]; some sozinha quando expira. Uma por app. */
     @android.annotation.SuppressLint("MissingPermission") // permissão verificada logo no início
-    fun showUnlock(context: Context, until: Long) {
+    fun showUnlock(context: Context, until: Long, label: String, tag: String) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
@@ -27,14 +27,14 @@ object Notifications {
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_UNLOCK)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Desbloqueado")
-            .setContentText("Os bloqueios voltam quando o tempo acabar.")
+            .setContentTitle("$label liberado")
+            .setContentText("O bloqueio volta quando o tempo acabar.")
             .setWhen(until)
             .setUsesChronometer(true)
             .setChronometerCountDown(true)
             .setTimeoutAfter(until - System.currentTimeMillis())
             .setOngoing(true)
             .build()
-        NotificationManagerCompat.from(context).notify(ID_UNLOCK, notification)
+        NotificationManagerCompat.from(context).notify(tag, ID_UNLOCK, notification)
     }
 }

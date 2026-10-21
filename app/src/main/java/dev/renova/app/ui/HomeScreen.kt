@@ -82,7 +82,7 @@ fun HomeScreen(
     val store = remember { AppStore.get(context) }
     val rules by store.rules.collectAsState(initial = emptyList())
     val usage by store.usage.collectAsState(initial = DailyUsage("", emptyMap()))
-    val unlockUntil by store.unlockUntil.collectAsState(initial = 0L)
+    val unlocks by store.unlocks.collectAsState(initial = emptyMap())
     val position by store.biblePosition.collectAsState(initial = BiblePosition())
     val chaptersRead by store.chaptersRead.collectAsState(initial = 0)
     val editUnlockUntil by store.editUnlockUntil.collectAsState(initial = 0L)
@@ -111,8 +111,18 @@ fun HomeScreen(
             delay(1000)
         }
     }
-    val unlocked = unlockUntil > now
     val today = usage.today()
+    val enabledRules = rules.filter { it.enabled }
+    val freeRules = enabledRules.filter { RuleEngine.isUnlocked(it, unlocks, now) }
+    fun ruleStatus(rule: Rule): String {
+        val until = unlocks[rule.id] ?: 0L
+        return when {
+            !rule.enabled -> "Desativada"
+            until > now -> "Livre · ${formatCountdown(until - now)}"
+            RuleEngine.blockReason(rule, today[rule.id] ?: 0L, LocalDateTime.now(), unlocked = false) != null -> "Bloqueado"
+            else -> "Livre"
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -196,8 +206,10 @@ fun HomeScreen(
             when (tab) {
                 HomeTab.RULES -> {
                     item {
-                        StatusTile(position, chaptersRead, unlocked, editUnlockUntil > now, unlockUntil - now) { option ->
-                            context.startReading(option)
+                        // Bloqueadas primeiro: é o que a pessoa costuma querer liberar.
+                        val pickable = enabledRules.sortedBy { ruleStatus(it) != "Bloqueado" }
+                        StatusTile(position, chaptersRead, pickable, ::ruleStatus, freeRules, editUnlockUntil > now) { option, rule ->
+                            context.startReading(option, listOfNotNull(rule?.id), rule?.label)
                         }
                     }
                     item { SectionTitle("Regras", onAdd = onNewRule, addLabel = "Nova regra") }
@@ -211,7 +223,7 @@ fun HomeScreen(
                     item {
                         Column {
                             rules.forEachIndexed { i, rule ->
-                                RuleRow(rule, today[rule.id] ?: 0L, unlocked, divider = i < rules.lastIndex) { onEditRule(rule.id) }
+                                RuleRow(rule, today[rule.id] ?: 0L, ruleStatus(rule), divider = i < rules.lastIndex) { onEditRule(rule.id) }
                             }
                         }
                     }
@@ -311,35 +323,53 @@ private fun DevotionTile(done: Boolean, targetCount: Int, onStart: () -> Unit) {
 private fun StatusTile(
     position: BiblePosition,
     chaptersRead: Int,
-    unlocked: Boolean,
+    rules: List<Rule>,
+    status: (Rule) -> String,
+    freeRules: List<Rule>,
     editsAllowed: Boolean,
-    remainingMs: Long,
-    onRead: (UnlockOption) -> Unit,
+    onRead: (UnlockOption, Rule?) -> Unit,
 ) {
+    // A leitura libera uma regra só: primeiro a regra (se houver mais de uma), depois o tempo.
+    var picking by remember { mutableStateOf(false) }
+    var chosen by remember { mutableStateOf<Rule?>(null) }
     var choosing by remember { mutableStateOf(false) }
+    if (picking) {
+        RulePickerDialog(rules, status, onDismiss = { picking = false }) { rule ->
+            picking = false
+            chosen = rule
+            choosing = true
+        }
+    }
     if (choosing) {
         UnlockOptionsDialog(onDismiss = { choosing = false }) { option ->
             choosing = false
-            onRead(option)
+            onRead(option, chosen)
         }
     }
     val rounds = if (position.rounds > 0) " · ${position.rounds}ª volta" else ""
+    val reading = "Próximo: ${Bible.title(position)} · $chaptersRead capítulos lidos$rounds"
     Tile(
         color = RenovaColors.Teal,
-        title = if (unlocked) "Livre · ${formatCountdown(remainingMs)}" else "Bloqueios ativos",
-        subtitle = "Próximo: ${Bible.title(position)} · $chaptersRead capítulos lidos$rounds",
-        action = when {
-            !unlocked -> UNLOCK_BUTTON_LABEL
-            editsAllowed -> "Você pode editar suas regras livremente"
-            else -> null
+        title = when (freeRules.size) {
+            0 -> "Bloqueios ativos"
+            1 -> "${freeRules.single().label} livre"
+            else -> "${freeRules.size} regras livres"
         },
-        onClick = if (unlocked) null else ({ choosing = true }),
+        subtitle = if (editsAllowed) "$reading\nVocê pode editar suas regras livremente" else reading,
+        action = UNLOCK_BUTTON_LABEL,
+        onClick = {
+            if (rules.size > 1) {
+                picking = true
+            } else {
+                chosen = rules.singleOrNull()
+                choosing = true
+            }
+        },
     )
 }
 
 @Composable
-private fun RuleRow(rule: Rule, usedSeconds: Long, unlocked: Boolean, divider: Boolean, onClick: () -> Unit) {
-    val reason = RuleEngine.blockReason(rule, usedSeconds, LocalDateTime.now(), unlocked)
+private fun RuleRow(rule: Rule, usedSeconds: Long, status: String, divider: Boolean, onClick: () -> Unit) {
     val limit = rule.dailyLimitMin
     val summary = buildList {
         when {
@@ -356,10 +386,10 @@ private fun RuleRow(rule: Rule, usedSeconds: Long, unlocked: Boolean, divider: B
         if (limit == null) add("${formatDuration(usedSeconds)} hoje")
     }.joinToString(" · ")
     ListRow(rule.label, summary, divider = divider, onClick = onClick) {
-        val (status, color) = when {
-            !rule.enabled -> "Desativada" to MaterialTheme.colorScheme.onSurfaceVariant
-            reason != null -> "Bloqueado" to MaterialTheme.colorScheme.error
-            else -> "Livre" to LocalExtraColors.current.ok
+        val color = when (status) {
+            "Desativada" -> MaterialTheme.colorScheme.onSurfaceVariant
+            "Bloqueado" -> MaterialTheme.colorScheme.error
+            else -> LocalExtraColors.current.ok
         }
         Text(status, color = color, style = MaterialTheme.typography.labelMedium)
     }

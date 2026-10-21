@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import dev.renova.app.data.AppStore
 import dev.renova.app.data.DailyUsage
 import dev.renova.app.data.Updater
@@ -42,7 +43,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var rules: List<Rule> = emptyList()
     private var devotionDoneDay: String? = null
     private var devotionEnabled = false
-    private var unlockUntil = 0L
+    private var unlocks: Map<String, Long> = emptyMap()
     private var usageDate = LocalDate.now().toString()
     private val usage = mutableMapOf<String, Long>()
     private var usageLoaded = false
@@ -50,15 +51,17 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var updateTicks = UPDATE_CHECK_EVERY_TICKS - 30
 
     private var active: ActiveTarget? = null
+    /** O Renova está em primeiro plano (lendo para liberar, nos 7 minutos, nas regras). */
+    private var ownAppInFront = false
     private var lastEvalAt = 0L
     private var lastBlockAt = 0L
-    private var lastPipExpandAt = 0L
+    private var lastExpandAt = 0L
 
     override fun onServiceConnected() {
         store = AppStore.get(this)
         power = getSystemService(PowerManager::class.java)
         scope.launch { store.rules.collect { rules = it } }
-        scope.launch { store.unlockUntil.collect { unlockUntil = it } }
+        scope.launch { store.unlocks.collect { unlocks = it } }
         scope.launch { store.devotionDoneDay.collect { devotionDoneDay = it } }
         scope.launch { store.devotionEnabled.collect { devotionEnabled = it } }
         scope.launch {
@@ -86,9 +89,21 @@ class BlockerAccessibilityService : AccessibilityService() {
     private fun evaluate() {
         val root = rootInActiveWindow ?: return
         val target = TargetDetector.detect(root) ?: return
-        active = if (target.packageName == packageName || target.packageName in IGNORED_PACKAGES) null else target
+        ownAppInFront = target.packageName == packageName
+        active = target.takeIf(::isCounted)
         checkBlock()
     }
+
+    private fun isCounted(target: ActiveTarget) = target.packageName != packageName && target.packageName !in IGNORED_PACKAGES
+
+    /**
+     * Apps visíveis fora da janela ativa: um vídeo em picture-in-picture (YouTube, Netflix…) ou a outra
+     * metade da tela dividida. Eles não aparecem em [rootInActiveWindow], mas o tempo deles conta igual.
+     */
+    private fun otherVisibleTargets(): List<ActiveTarget> = windows
+        .filter { (it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isInPictureInPictureMode) && !it.isActive }
+        .mapNotNull { window -> window.root?.let(TargetDetector::detect) }
+        .filter(::isCounted)
 
     private suspend fun tickLoop() {
         while (scope.isActive) {
@@ -100,13 +115,13 @@ class BlockerAccessibilityService : AccessibilityService() {
             }
             if (!power.isInteractive) continue
             evaluate()
-            checkPictureInPicture()
-            val target = active ?: continue
-            val matched = rules.filter { RuleEngine.matches(it, target) }
-            if (matched.isEmpty()) continue
-            matched.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
+            val others = otherVisibleTargets()
+            val inUse = RuleEngine.inUse(rules, others + listOfNotNull(active))
+            if (inUse.isEmpty()) continue
+            inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
             if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
             checkBlock()
+            expandBlocked(others)
         }
     }
 
@@ -126,29 +141,22 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     private fun checkBlock() {
         val target = active ?: return
-        val (rule, reason) = blockFor(target) ?: return
-        block(rule, reason.name)
+        val blocking = blocking(target)
+        val (rule, reason) = blocking.firstOrNull() ?: return
+        block(rule, reason.name, blocking.map { it.first.id })
     }
 
-    /**
-     * Regra que bloqueia [target] agora, se houver. Os 7 minutos com o Senhor vêm primeiro e
-     * não cedem às liberações por leitura: até fazê-los, todo alvo das regras fica bloqueado.
-     */
-    private fun blockFor(target: ActiveTarget): Pair<Rule, BlockReason>? {
+    /** Regras que bloqueiam [target] agora (ver [RuleEngine.blocking]). */
+    private fun blocking(target: ActiveTarget): List<Pair<Rule, BlockReason>> {
         val now = LocalDateTime.now()
-        if (devotionEnabled && !Devotion.isDone(devotionDoneDay, now)) {
-            rules.firstOrNull { RuleEngine.matches(it, target) }?.let { return it to BlockReason.DEVOTION }
-        }
-        val unlocked = unlockUntil > System.currentTimeMillis()
-        for (rule in rules) {
-            if (!RuleEngine.matches(rule, target)) continue
-            val reason = RuleEngine.blockReason(rule, usage[rule.id] ?: 0L, now, unlocked) ?: continue
-            return rule to reason
-        }
-        return null
+        return RuleEngine.blocking(
+            rules, target, usage, now, System.currentTimeMillis(), unlocks,
+            devotionPending = devotionEnabled && !Devotion.isDone(devotionDoneDay, now),
+        )
     }
 
-    private fun block(rule: Rule, reason: String) {
+    /** [ruleIds]: todas as regras que bloqueiam o alvo, para a leitura liberar o app de vez. */
+    private fun block(rule: Rule, reason: String, ruleIds: List<String>) {
         val now = System.currentTimeMillis()
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
@@ -161,6 +169,7 @@ class BlockerAccessibilityService : AccessibilityService() {
             .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
             .putExtra(BlockedActivity.EXTRA_REASON, reason)
             .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
+            .putExtra(BlockedActivity.EXTRA_RULE_IDS, ruleIds.toTypedArray())
         if (rule.type.isSection) {
             // No Shorts/Reels basta voltar (o resto do app continua liberado); espera o app sair da seção.
             performGlobalAction(GLOBAL_ACTION_BACK)
@@ -175,18 +184,18 @@ class BlockerAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Um alvo bloqueado tocando em picture-in-picture (ex.: Home apertado dentro do Shorts) não aparece
-     * como janela ativa. Trazê-lo de volta à tela cheia deixa o bloqueio normal agir.
+     * Um alvo bloqueado fora da janela ativa (em picture-in-picture, ou na outra metade da tela dividida)
+     * não é expulso pelo bloqueio normal. Trazê-lo para a frente deixa o bloqueio agir.
      */
-    private fun checkPictureInPicture() {
+    private fun expandBlocked(others: List<ActiveTarget>) {
+        // Com o Renova na frente, puxar o app tiraria a pessoa da leitura que vai liberá-lo.
+        if (ownAppInFront) return
         val nowMs = System.currentTimeMillis()
-        if (nowMs - lastPipExpandAt < PIP_EXPAND_COOLDOWN_MS) return
-        for (window in windows) {
-            if (!window.isInPictureInPictureMode) continue
-            val target = window.root?.let(TargetDetector::detect) ?: continue
-            if (blockFor(target) == null) continue
+        if (nowMs - lastExpandAt < EXPAND_COOLDOWN_MS) return
+        for (target in others) {
+            if (blocking(target).isEmpty()) continue
             val launch = packageManager.getLaunchIntentForPackage(target.packageName) ?: continue
-            lastPipExpandAt = nowMs
+            lastExpandAt = nowMs
             startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return
         }
@@ -196,7 +205,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         private const val EVAL_THROTTLE_MS = 300L
         private const val BLOCK_COOLDOWN_MS = 1500L
         private const val SECTION_BACK_DELAY_MS = 400L
-        private const val PIP_EXPAND_COOLDOWN_MS = 3000L
+        private const val EXPAND_COOLDOWN_MS = 3000L
         private const val FLUSH_EVERY_TICKS = 10
         private const val UPDATE_CHECK_EVERY_TICKS = 15 * 60
         private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
