@@ -138,11 +138,13 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     private suspend fun rollOverDay() {
         val today = LocalDate.now().toString()
-        if (today != usageDate) {
-            usageDate = today
-            usage.clear()
-            flushUsage()
-        }
+        if (today == usageDate) return
+        // Voltar para uma data já vista (relógio mexido) recupera o uso dela em vez de começar do zero.
+        val entering = store.rollOverUsage(DailyUsage(usageDate, usage.toMap()), today)
+        usageDate = today
+        usage.clear()
+        usage.putAll(entering)
+        dirtyTicks = 0
     }
 
     private suspend fun flushUsage() {

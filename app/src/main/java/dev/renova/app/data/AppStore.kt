@@ -2,6 +2,7 @@ package dev.renova.app.data
 
 import android.content.Context
 import androidx.annotation.VisibleForTesting
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -16,6 +17,7 @@ import dev.renova.app.domain.Reading
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.TargetType
 import dev.renova.app.domain.UnlockOption
+import dev.renova.app.domain.UsageHistory
 import dev.renova.app.domain.VerseRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -26,7 +28,7 @@ import java.time.LocalDate
 
 private val Context.dataStore by preferencesDataStore("renova")
 
-/** Uso de hoje, em segundos por id de regra. */
+/** Uso de um dia, em segundos por id de regra. */
 data class DailyUsage(val date: String, val seconds: Map<String, Long>) {
     fun today(): Map<String, Long> = if (date == LocalDate.now().toString()) seconds else emptyMap()
 }
@@ -37,8 +39,10 @@ class AppStore private constructor(context: Context) {
 
     private object Keys {
         val RULES = stringPreferencesKey("rules")
+        /** Uso de um dia só, das versões até a 1.12; agora fica em [USAGE_DAYS]. */
         val USAGE_DATE = stringPreferencesKey("usage_date")
         val USAGE = stringPreferencesKey("usage")
+        val USAGE_DAYS = stringPreferencesKey("usage_days")
         /** Liberação geral das versões até a 1.11; agora cada regra tem a sua em [UNLOCKS]. */
         val UNLOCK_UNTIL = longPreferencesKey("unlock_until")
         val UNLOCKS = stringPreferencesKey("unlocks")
@@ -62,11 +66,23 @@ class AppStore private constructor(context: Context) {
     private fun Preferences.rules(): List<Rule> =
         this[Keys.RULES]?.let { json.decodeFromString<List<Rule>>(it) }.orEmpty().filter { it.type != TargetType.WEBSITE }
 
+    /** Uso de hoje (ver [UsageHistory]). */
     val usage: Flow<DailyUsage> = store.data.map { p ->
-        DailyUsage(
-            p[Keys.USAGE_DATE] ?: "",
-            p[Keys.USAGE]?.let { json.decodeFromString<Map<String, Long>>(it) } ?: emptyMap(),
-        )
+        val today = LocalDate.now().toString()
+        DailyUsage(today, p.usageHistory()[today].orEmpty())
+    }
+
+    /** Uso por data; o dia único das versões anteriores entra como o primeiro do histórico. */
+    private fun Preferences.usageHistory(): Map<String, Map<String, Long>> {
+        this[Keys.USAGE_DAYS]?.let { return json.decodeFromString<Map<String, Map<String, Long>>>(it) }
+        val date = this[Keys.USAGE_DATE] ?: return emptyMap()
+        return mapOf(date to (this[Keys.USAGE]?.let { json.decodeFromString<Map<String, Long>>(it) } ?: emptyMap()))
+    }
+
+    private fun MutablePreferences.setUsageHistory(history: Map<String, Map<String, Long>>) {
+        this[Keys.USAGE_DAYS] = json.encodeToString(history)
+        remove(Keys.USAGE_DATE)
+        remove(Keys.USAGE)
     }
 
     /**
@@ -189,8 +205,26 @@ class AppStore private constructor(context: Context) {
     }
 
     suspend fun saveUsage(usage: DailyUsage) = store.edit { p ->
+        p.setUsageHistory(UsageHistory.record(p.usageHistory(), usage.date, usage.seconds))
+    }
+
+    /** Grava o uso como as versões até a 1.12 gravavam (um dia só). Só para testes. */
+    @VisibleForTesting
+    internal suspend fun setLegacyUsage(usage: DailyUsage) = store.edit { p ->
+        p.remove(Keys.USAGE_DAYS)
         p[Keys.USAGE_DATE] = usage.date
         p[Keys.USAGE] = json.encodeToString(usage.seconds)
+    }
+
+    /** Guarda o uso do dia que sai e devolve o já gravado para [entering] (vazio se a data é nova). */
+    suspend fun rollOverUsage(leaving: DailyUsage, entering: String): Map<String, Long> {
+        var seconds = emptyMap<String, Long>()
+        store.edit { p ->
+            val (history, enteringSeconds) = UsageHistory.rollOver(p.usageHistory(), leaving.date, leaving.seconds, entering)
+            p.setUsageHistory(history)
+            seconds = enteringSeconds
+        }
+        return seconds
     }
 
     /** Se todas as regras [ruleIds] estão liberadas por leitura agora. */
