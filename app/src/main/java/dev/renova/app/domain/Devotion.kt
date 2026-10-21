@@ -73,12 +73,14 @@ object Devotion {
     fun dayKey(now: LocalDateTime): String = day(now).toString()
 
     /**
-     * Feitos no dia de [now] ou depois. Comparar a data exata reabria o bloqueio ao mudar o fuso para oeste
-     * (o dia de agora volta para ontem e deixa de ser igual ao gravado).
+     * Feitos no dia de [now] ou no seguinte. Comparar a data exata reabria o bloqueio ao mudar o fuso para oeste
+     * (o dia de agora volta para ontem e deixa de ser igual ao gravado), o que recua no máximo um dia.
+     * Aceitar qualquer data futura deixava adiantar o relógio, fazer uma vez e ficar dispensado até lá.
      */
     fun isDone(doneDay: String?, now: LocalDateTime): Boolean {
         val done = doneDay?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return false
-        return done >= day(now)
+        val today = day(now)
+        return done >= today && done <= today.plusDays(1)
     }
 
     /** Etapa atual e segundos já passados nela, dado o tempo total decorrido; null ao terminar. */

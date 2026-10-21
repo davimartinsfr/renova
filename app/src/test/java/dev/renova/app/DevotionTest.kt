@@ -148,4 +148,15 @@ class DevotionDoneTest {
         assertFalse(Devotion.isDone(null, LocalDateTime.of(2026, 10, 21, 9, 0)))
         assertFalse(Devotion.isDone("lixo", LocalDateTime.of(2026, 10, 21, 9, 0)))
     }
+
+    @Test fun doneFarInTheFutureDoesNotCount() {
+        val now = LocalDateTime.of(2026, 10, 21, 9, 0)
+        assertTrue(Devotion.isDone("2026-10-21", now))
+        assertTrue(Devotion.isDone("2026-10-22", now))
+        // Relógio adiantado, 7 minutos feitos, relógio voltado: não dispensa os dias até lá.
+        assertFalse(Devotion.isDone("2026-10-23", now))
+        assertFalse(Devotion.isDone("2027-10-21", now))
+        assertFalse(Devotion.isDone("2026-10-20", now))
+        assertFalse(Devotion.isDone("21/10/2026", now))
+    }
 }
