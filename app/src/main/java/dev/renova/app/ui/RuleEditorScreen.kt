@@ -56,6 +56,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,9 +75,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 
 private data class InstalledApp(val label: String, val packageName: String)
+
+/** A regra original e os horários vão como JSON para o estado salvo da tela. */
+private val RuleSaver = Saver<Rule?, String>(
+    save = { rule -> rule?.let { Json.encodeToString(it) } },
+    restore = { Json.decodeFromString<Rule>(it) },
+)
+
+private val SchedulesSaver = Saver<SnapshotStateList<Schedule>, String>(
+    save = { Json.encodeToString(it.toList()) },
+    restore = { Json.decodeFromString<List<Schedule>>(it).toMutableStateList() },
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -82,21 +99,24 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     val store = remember { AppStore.get(context) }
     val scope = rememberCoroutineScope()
 
-    var original by remember { mutableStateOf<Rule?>(null) }
-    var loaded by remember { mutableStateOf(ruleId == null) }
-    var type by remember { mutableStateOf(TargetType.YT_SHORTS) }
-    var target by remember { mutableStateOf("") }
-    var label by remember { mutableStateOf("") }
-    var limitOn by remember { mutableStateOf(true) }
-    var limitMin by remember { mutableIntStateOf(15) }
-    val schedules = remember { mutableStateListOf<Schedule>() }
-    var enabled by remember { mutableStateOf(true) }
+    // Saveable: o formulário sobrevive a girar a tela, à troca de tema e à morte do processo
+    // (voltar da leitura exigida para afrouxar a regra pode recriar a tela).
+    var original by rememberSaveable(stateSaver = RuleSaver) { mutableStateOf<Rule?>(null) }
+    var loaded by rememberSaveable { mutableStateOf(ruleId == null) }
+    var type by rememberSaveable { mutableStateOf(TargetType.YT_SHORTS) }
+    var target by rememberSaveable { mutableStateOf("") }
+    var label by rememberSaveable { mutableStateOf("") }
+    var limitOn by rememberSaveable { mutableStateOf(true) }
+    var limitMin by rememberSaveable { mutableIntStateOf(15) }
+    val schedules = rememberSaveable(saver = SchedulesSaver) { mutableStateListOf<Schedule>() }
+    var enabled by rememberSaveable { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var needReading by remember { mutableStateOf(false) }
     var pickingApp by remember { mutableStateOf(false) }
 
     LaunchedEffect(ruleId) {
-        if (ruleId == null) return@LaunchedEffect
+        // Já carregada antes de a tela ser recriada: o que está no formulário vale mais que o salvo.
+        if (ruleId == null || loaded) return@LaunchedEffect
         store.rules.first().find { it.id == ruleId }?.let { r ->
             original = r
             type = r.type
