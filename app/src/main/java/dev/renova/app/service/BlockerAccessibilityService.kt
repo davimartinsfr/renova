@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Rect
 import android.media.AudioManager
 import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
@@ -188,12 +189,14 @@ class BlockerAccessibilityService : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_BACK)
             scope.launch {
                 delay(SECTION_BACK_DELAY_MS)
+                val requestedAt = SystemClock.elapsedRealtime()
                 startActivity(blockedScreen)
-                ensureShown(target.packageName, rule, reason, blockedScreen)
+                ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt)
             }
         } else {
+            val requestedAt = SystemClock.elapsedRealtime()
             startActivity(blockedScreen)
-            scope.launch { ensureShown(target.packageName, rule, reason, blockedScreen) }
+            scope.launch { ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt) }
         }
         scope.launch { flushUsage() }
     }
@@ -215,9 +218,10 @@ class BlockerAccessibilityService : AccessibilityService() {
      * sem erro nenhum: o Shorts fechava, mas a tela de bloqueio não aparecia. Se ela não abriu, o serviço
      * desenha o bloqueio ele mesmo por cima do app.
      */
-    private suspend fun ensureShown(pkg: String, rule: Rule, reason: String, blockedScreen: Intent) {
+    private suspend fun ensureShown(pkg: String, rule: Rule, reason: String, blockedScreen: Intent, requestedAt: Long) {
         delay(SHOW_CHECK_MS)
-        if (BlockedActivity.isShowing || overlay.isShowing || frontAppPackage() != pkg) return
+        if (Enforcement.blockScreenOpened(BlockedActivity.lastResumedAt, requestedAt)) return
+        if (overlay.isShowing || frontAppPackage() != pkg) return
         showOverlay(pkg, rule, reason, blockedScreen, followsFront = true) {
             if (!rule.type.isSection) performGlobalAction(GLOBAL_ACTION_HOME)
         }
@@ -288,8 +292,9 @@ class BlockerAccessibilityService : AccessibilityService() {
                 if (launch == null) {
                     pauseMedia()
                 } else {
+                    val requestedAt = SystemClock.elapsedRealtime()
                     startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    scope.launch { ensurePulled(target) }
+                    scope.launch { ensurePulled(target, requestedAt) }
                 }
             }
         }
@@ -301,11 +306,13 @@ class BlockerAccessibilityService : AccessibilityService() {
      * sem fim. Se o app não veio para a frente, o serviço pausa a mídia e mostra o aviso por cima, que fica
      * enquanto o PiP estiver na tela.
      */
-    private suspend fun ensurePulled(target: ActiveTarget) {
+    private suspend fun ensurePulled(target: ActiveTarget, requestedAt: Long) {
         delay(SHOW_CHECK_MS)
         val pkg = target.packageName
         val windows = appWindows()
-        if (BlockedActivity.isShowing || Enforcement.frontApp(windows) == pkg || windows.none { it.packageName == pkg }) return
+        // Veio para a frente e foi bloqueado normalmente, ou o PiP já fechou.
+        if (Enforcement.blockScreenOpened(BlockedActivity.lastResumedAt, requestedAt)) return
+        if (Enforcement.frontApp(windows) == pkg || windows.none { it.packageName == pkg }) return
         val blocking = blocking(target)
         val (rule, reason) = blocking.firstOrNull() ?: return
         if (overlay.isShowing || pipNoticeDismissed == pkg) return pauseMedia()

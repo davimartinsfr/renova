@@ -61,4 +61,12 @@ class EnforcementTest {
         assertEquals(listOf(ActiveTarget("com.netflix.mediaclient")), Enforcement.counted(targets, overlayPackage = youtube))
         assertEquals(targets, Enforcement.counted(targets, overlayPackage = null))
     }
+
+    @Test fun overlayOnlyWhenTheBlockScreenNeverOpened() {
+        // Abriu (e a pessoa já saiu pelo Voltar): nada de aviso.
+        assertTrue(Enforcement.blockScreenOpened(lastResumedAt = 1_500, requestedAt = 1_000))
+        // A última vez que abriu foi num bloqueio anterior: o sistema barrou este.
+        assertFalse(Enforcement.blockScreenOpened(lastResumedAt = 500, requestedAt = 1_000))
+        assertFalse(Enforcement.blockScreenOpened(lastResumedAt = 0, requestedAt = 1_000))
+    }
 }

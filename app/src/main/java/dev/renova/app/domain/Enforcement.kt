@@ -63,4 +63,11 @@ object Enforcement {
     /** Alvos que contam tempo: com o aviso por cima de [overlayPackage], o app embaixo dele não está sendo usado. */
     fun counted(targets: List<ActiveTarget>, overlayPackage: String?): List<ActiveTarget> =
         targets.filterNot { it.packageName == overlayPackage }
+
+    /**
+     * Se a tela de bloqueio pedida em [requestedAt] chegou a abrir (ela grava [lastResumedAt] ao aparecer).
+     * Só quando não abriu o sistema barrou o pedido e vale o aviso por cima; olhar só se ela está na frente
+     * agora mostraria o aviso para quem já saiu dela pelo Voltar.
+     */
+    fun blockScreenOpened(lastResumedAt: Long, requestedAt: Long): Boolean = lastResumedAt >= requestedAt
 }

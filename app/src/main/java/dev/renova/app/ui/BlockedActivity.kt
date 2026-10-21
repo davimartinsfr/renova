@@ -2,6 +2,7 @@ package dev.renova.app.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -79,6 +80,7 @@ class BlockedActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isShowing = true
+        lastResumedAt = SystemClock.elapsedRealtime()
         // Voltando da leitura (ou dos 7 minutos) com o bloqueio resolvido: some da frente.
         lifecycleScope.launch {
             val store = AppStore.get(this@BlockedActivity)
@@ -120,6 +122,14 @@ class BlockedActivity : ComponentActivity() {
         /** Na frente agora: o serviço confere isto para saber se o sistema deixou a tela abrir. */
         @Volatile
         var isShowing = false
+            private set
+
+        /**
+         * Quando a tela esteve na frente pela última vez ([SystemClock.elapsedRealtime]). A pessoa pode sair
+         * dela antes de o serviço conferir [isShowing]: isto diz que ela abriu, mesmo que já tenha fechado.
+         */
+        @Volatile
+        var lastResumedAt = 0L
             private set
     }
 }
