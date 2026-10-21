@@ -69,6 +69,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var active: ActiveTarget? = null
     /** O Renova está em primeiro plano (lendo para liberar, nos 7 minutos, nas regras). */
     private var ownAppInFront = false
+    // Intervalos em elapsedRealtime: com o relógio do aparelho, atrasar a hora travava o bloqueio pelo tamanho do atraso.
     private var lastEvalAt = 0L
     private var lastBlockAt = 0L
     private var lastExpandAt = 0L
@@ -95,7 +96,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && now - lastEvalAt < EVAL_THROTTLE_MS) return
         lastEvalAt = now
         evaluate()
@@ -212,7 +213,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private fun block(target: ActiveTarget, rule: Rule, reason: String, ruleIds: List<String>) {
         // O aviso por cima já está bloqueando: não adianta tentar abrir a tela de novo.
         if (overlay.isShowing) return
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
         active = null
@@ -318,7 +319,7 @@ class BlockerAccessibilityService : AccessibilityService() {
      * leitura ou os 7 minutos na frente, só a mídia é pausada, para não tirar a pessoa do que vai liberá-lo.
      */
     private fun handleBlockedOffscreen(others: List<ActiveTarget>) {
-        val nowMs = System.currentTimeMillis()
+        val nowMs = SystemClock.elapsedRealtime()
         if (nowMs - lastExpandAt < EXPAND_COOLDOWN_MS) return
         val target = others.firstOrNull { blocking(it).isNotEmpty() }
         val ownScreen = when {
