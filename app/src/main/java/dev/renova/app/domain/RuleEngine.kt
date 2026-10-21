@@ -100,11 +100,13 @@ object RuleEngine {
 
     /**
      * Id da regra salva no editor. Trocar o tipo ou o app faz outra regra: com o id antigo, ela herdaria
-     * o uso de hoje e a liberação do alvo anterior. [newId] é sorteado uma vez por tela, para dois toques
-     * em Salvar numa regra nova não criarem duas.
+     * o uso de hoje e a liberação do alvo anterior. A exceção é trocar uma seção pelo app inteiro dela
+     * (Reels → Instagram): o uso de hoje continua contando, senão a troca dava o limite de novo sem leitura.
+     * A liberação da seção não passa para o app ([AppStore.saveRule][dev.renova.app.data.AppStore.saveRule]
+     * apaga). [newId] é sorteado uma vez por tela, para dois toques em Salvar numa regra nova não criarem duas.
      */
     fun idFor(original: Rule?, type: TargetType, target: String, newId: String): String =
-        if (original != null && original.type == type && original.target == target) original.id else newId
+        if (original != null && coversTarget(type, target, original)) original.id else newId
 
     /**
      * Uma mudança "afrouxa" o bloqueio quando algum minuto da semana deixa de ser bloqueado,
@@ -133,9 +135,11 @@ object RuleEngine {
     )
 
     /** Se o alvo de [new] contém o de [old]: o mesmo, ou o app inteiro no lugar de uma seção dele. */
-    private fun coversTarget(new: Rule, old: Rule): Boolean =
-        (new.type == old.type && new.target == old.target) ||
-            (new.type == TargetType.APP && new.target == SECTION_APPS[old.type])
+    private fun coversTarget(new: Rule, old: Rule): Boolean = coversTarget(new.type, new.target, old)
+
+    private fun coversTarget(type: TargetType, target: String, old: Rule): Boolean =
+        (type == old.type && target == old.target) ||
+            (type == TargetType.APP && target == SECTION_APPS[old.type])
 
     /** Minutos da semana em que [rule] bloqueia sem depender do uso: com limite 0, todos. */
     private fun blockedMask(rule: Rule): java.util.BitSet =

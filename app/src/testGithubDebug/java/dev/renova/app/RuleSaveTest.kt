@@ -9,11 +9,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.renova.app.data.AppStore
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.TargetType
+import dev.renova.app.domain.UnlockOption
 import dev.renova.app.ui.AppTheme
 import dev.renova.app.ui.RuleEditorScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -44,5 +46,23 @@ class RuleSaveTest {
         store.saveRule(Rule("new", TargetType.IG_REELS, label = "Instagram Reels", dailyLimitMin = 10), replacing = "old")
         val ids = store.rules.first().map { it.id }
         assertEquals(listOf(false, true), listOf("old" in ids, "new" in ids))
+    }
+
+    @Test fun swappingASectionForTheWholeAppDropsItsUnlock() = runBlocking {
+        store.saveRule(Rule("reels", TargetType.IG_REELS, label = "Instagram Reels", dailyLimitMin = 10))
+        store.saveRule(Rule("other", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 10))
+        store.grantUnlock(UnlockOption.VERSE, listOf("reels", "other"))
+        store.saveRule(
+            Rule("reels", TargetType.APP, "com.instagram.android", label = "Instagram", dailyLimitMin = 10),
+            replacing = "reels",
+        )
+        val unlocks = store.unlocks.first()
+        assertEquals(listOf(false, true), listOf("reels" in unlocks, "other" in unlocks))
+        // Salvar sem trocar o alvo não mexe na liberação.
+        store.grantUnlock(UnlockOption.VERSE, listOf("reels"))
+        store.saveRule(Rule("reels", TargetType.APP, "com.instagram.android", label = "Instagram", dailyLimitMin = 5))
+        assertTrue("reels" in store.unlocks.first())
+        store.clearUnlocks()
+        Unit
     }
 }

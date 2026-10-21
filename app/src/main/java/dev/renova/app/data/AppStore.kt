@@ -228,7 +228,18 @@ class AppStore private constructor(context: Context) {
     )
 
     /** Grava [rule]; com [replacing], ela toma o lugar dessa outra regra (alvo trocado ganha id novo). */
+    /**
+     * Grava [rule] no lugar da de mesmo id (ou de [replacing], se o id mudou). Se o alvo mudou com o mesmo id
+     * (seção trocada pelo app inteiro, ver [RuleEngine.idFor][dev.renova.app.domain.RuleEngine.idFor]), a liberação da seção não vale para o app.
+     */
     suspend fun saveRule(rule: Rule, replacing: String? = null) = store.edit { p ->
+        val old = p.rules().firstOrNull { it.id == rule.id }
+        if (old != null && (old.type != rule.type || old.target != rule.target)) {
+            val now = System.currentTimeMillis()
+            p[Keys.UNLOCKS] = json.encodeToString(p.unlocks(now).filterValues { it > now } - rule.id)
+            // A liberação geral antiga já foi copiada para as outras regras acima.
+            p.remove(Keys.UNLOCK_UNTIL)
+        }
         val list = p.rules().filterNot { replacing != null && replacing != rule.id && it.id == replacing }
         val updated = if (list.any { it.id == rule.id }) list.map { if (it.id == rule.id) rule else it } else list + rule
         p.setRules(updated)

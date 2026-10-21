@@ -60,6 +60,18 @@ class RuleEngineTest {
         assertEquals("new", RuleEngine.idFor(null, TargetType.APP, "com.netflix.mediaclient", "new"))
     }
 
+    @Test fun swappingASectionForItsWholeAppKeepsTheId() {
+        val reels = Rule("reels", TargetType.IG_REELS, label = "Instagram Reels", dailyLimitMin = 10)
+        val shorts = Rule("shorts", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 10)
+        assertEquals("reels", RuleEngine.idFor(reels, TargetType.APP, "com.instagram.android", "new"))
+        assertEquals("shorts", RuleEngine.idFor(shorts, TargetType.APP, "com.google.android.youtube", "new"))
+        assertEquals("new", RuleEngine.idFor(reels, TargetType.APP, "com.google.android.youtube", "new"))
+        assertEquals("new", RuleEngine.idFor(shorts, TargetType.IG_REELS, "", "new"))
+        // O contrário (app inteiro → seção) afrouxa e faz outra regra.
+        val instagram = Rule("ig", TargetType.APP, "com.instagram.android", label = "Instagram", dailyLimitMin = 10)
+        assertEquals("new", RuleEngine.idFor(instagram, TargetType.IG_REELS, "", "new"))
+    }
+
     @Test fun zeroLimitIsAlwaysBlocked() {
         val rule = reddit.copy(dailyLimitMin = 0, schedules = listOf(Schedule(startMin = 22 * 60, endMin = 7 * 60)))
         assertEquals(BlockReason.ALWAYS, RuleEngine.blockReason(rule, 0, at(2, 12), unlocked = false))
