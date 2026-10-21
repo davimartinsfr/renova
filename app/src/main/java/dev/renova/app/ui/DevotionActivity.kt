@@ -88,8 +88,8 @@ private fun DevotionScreen(onClose: () -> Unit) {
     var finished by rememberSaveable { mutableStateOf(false) }
     val prayReading by produceState<PrayReading?>(null) {
         val bible = Bible.load(context)
-        val list = DevotionVerses.merge(DevotionVerses.load(context, bible), store.devotionVerses.first())
-        val ref = Devotion.pickForDay(list, Devotion.day(LocalDateTime.now()))
+        val list = DevotionVerses.pool(DevotionVerses.load(context, bible), store.devotionVerses.first())
+        val ref = store.devotionVerseFor(Devotion.dayKey(LocalDateTime.now()), list)
             ?: FALLBACK_VERSE
         value = PrayReading(bible.title(ref), bible.verses(ref), ref.fromVerse)
     }

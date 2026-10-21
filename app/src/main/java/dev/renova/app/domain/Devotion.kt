@@ -3,6 +3,7 @@ package dev.renova.app.domain
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlin.random.Random
 
 /** Uma etapa dos "7 minutos com o Senhor" (método CPPCCTP). */
 data class DevotionStep(
@@ -15,6 +16,10 @@ data class DevotionStep(
 /** Trecho para orar-ler: livro (base 0), capítulo e versículos (base 1, inclusivos). */
 @Serializable
 data class VerseRef(val book: Int, val chapter: Int, val fromVerse: Int, val toVerse: Int)
+
+/** Trecho sorteado para orar-ler no dia [day] (ver [Devotion.dayKey]). */
+@Serializable
+data class DevotionPick(val day: String, val ref: VerseRef)
 
 object Devotion {
     /** O dia da devoção vira às 4h: de madrugada ainda vale o dia anterior. */
@@ -79,7 +84,13 @@ object Devotion {
         return null
     }
 
-    /** Versículo do dia: percorre a lista em ordem, um por dia, recomeçando ao fim. */
-    fun <T> pickForDay(list: List<T>, day: LocalDate): T? =
-        if (list.isEmpty()) null else list[Math.floorMod(day.toEpochDay(), list.size.toLong()).toInt()]
+    /**
+     * Trecho do dia: o já sorteado hoje, se ainda está na lista; senão um sorteio novo,
+     * que evita repetir o último quando há outra opção.
+     */
+    fun pickForDay(list: List<VerseRef>, saved: DevotionPick?, dayKey: String, random: Random = Random.Default): DevotionPick? {
+        if (saved != null && saved.day == dayKey && saved.ref in list) return saved
+        val options = list.filter { it != saved?.ref }.ifEmpty { list }
+        return options.randomOrNull(random)?.let { DevotionPick(dayKey, it) }
+    }
 }

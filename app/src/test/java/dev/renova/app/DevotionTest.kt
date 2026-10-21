@@ -3,6 +3,7 @@ package dev.renova.app
 import dev.renova.app.data.Bible
 import dev.renova.app.data.DevotionVerses
 import dev.renova.app.domain.Devotion
+import dev.renova.app.domain.DevotionPick
 import dev.renova.app.domain.VerseRef
 import dev.renova.app.ui.stepToneLevel
 import org.junit.Assert.assertEquals
@@ -11,8 +12,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
-import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlin.random.Random
 
 class DevotionTest {
     @Test fun stepsAddUpToSevenMinutes() {
@@ -38,13 +39,31 @@ class DevotionTest {
         assertFalse(Devotion.isDone(null, LocalDateTime.of(2026, 10, 20, 4, 1)))
     }
 
-    @Test fun pickForDayRotatesThroughList() {
-        val list = listOf("a", "b", "c")
-        val day = LocalDate.of(2026, 10, 19)
-        val picks = (0L..5L).map { Devotion.pickForDay(list, day.plusDays(it)) }
-        assertEquals(picks.take(3).toSet(), list.toSet())
-        assertEquals(picks.take(3), picks.drop(3))
-        assertNull(Devotion.pickForDay(emptyList<String>(), day))
+    @Test fun pickKeepsTodaysVerseWhileItIsInTheList() {
+        val a = VerseRef(48, 6, 17, 18)
+        val b = VerseRef(54, 3, 16, 16)
+        val saved = DevotionPick("2026-10-21", a)
+        assertEquals(saved, Devotion.pickForDay(listOf(a, b), saved, "2026-10-21"))
+        // Removido da lista no mesmo dia: sorteia outro.
+        assertEquals(DevotionPick("2026-10-21", b), Devotion.pickForDay(listOf(b), saved, "2026-10-21"))
+    }
+
+    @Test fun newDayAvoidsRepeatingYesterday() {
+        val a = VerseRef(48, 6, 17, 18)
+        val b = VerseRef(54, 3, 16, 16)
+        val saved = DevotionPick("2026-10-20", a)
+        repeat(20) { seed ->
+            assertEquals(b, Devotion.pickForDay(listOf(a, b), saved, "2026-10-21", Random(seed))?.ref)
+        }
+        // Com um trecho só, ele se repete.
+        assertEquals(a, Devotion.pickForDay(listOf(a), saved, "2026-10-21")?.ref)
+        assertNull(Devotion.pickForDay(emptyList(), saved, "2026-10-21"))
+    }
+
+    @Test fun pickIsRandomAmongTheList() {
+        val list = (1..5).map { VerseRef(18, it, 1, 1) }
+        val picks = (0..200).mapNotNull { Devotion.pickForDay(list, null, "2026-10-21", Random(it))?.ref }.toSet()
+        assertEquals(list.toSet(), picks)
     }
 }
 
@@ -99,11 +118,11 @@ class DevotionVersesTest {
     private val b = VerseRef(54, 3, 16, 16)
     private val c = VerseRef(18, 23, 1, 2)
 
-    @Test fun mergeAppendsUserVersesAfterBuiltIn() {
-        assertEquals(listOf(a, b, c), DevotionVerses.merge(listOf(a, b), listOf(c)))
+    @Test fun poolUsesUserVersesWhenThereAreAny() {
+        assertEquals(listOf(c), DevotionVerses.pool(listOf(a, b), listOf(c)))
     }
 
-    @Test fun mergeSkipsDuplicates() {
-        assertEquals(listOf(a, b, c), DevotionVerses.merge(listOf(a, b), listOf(b, c, c)))
+    @Test fun poolFallsBackToBuiltIn() {
+        assertEquals(listOf(a, b), DevotionVerses.pool(listOf(a, b), emptyList()))
     }
 }

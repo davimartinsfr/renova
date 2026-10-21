@@ -17,6 +17,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,8 +38,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
 /**
- * Trechos de orar-ler da aba dos 7 minutos: a lista do app e, depois, os que a pessoa adicionou.
- * Só os adicionados podem ser removidos.
+ * Trechos de orar-ler da aba dos 7 minutos, de onde sai o sorteio do dia. Mostra os que a pessoa
+ * adicionou (que ela pode remover) ou, enquanto não houver nenhum, os do app.
  */
 @Composable
 internal fun PrayReadSection() {
@@ -52,13 +53,17 @@ internal fun PrayReadSection() {
     }
     var adding by remember { mutableStateOf(false) }
     val (bible, builtIn) = loaded ?: return
-    val list = DevotionVerses.merge(builtIn, mine)
-    val todayRef = Devotion.pickForDay(list, Devotion.day(LocalDateTime.now()))
+    val list = DevotionVerses.pool(builtIn, mine)
+    val dayKey = Devotion.dayKey(LocalDateTime.now())
+    val pick by store.devotionPick.collectAsState(initial = null)
+    LaunchedEffect(list, dayKey) { store.devotionVerseFor(dayKey, list) }
+    val todayRef = pick?.takeIf { it.day == dayKey }?.ref
 
     Column {
         SectionTitle("Orar-ler", onAdd = { adding = true }, addLabel = "Adicionar trecho")
         Text(
-            "Um trecho por dia, na ordem da lista.",
+            if (mine.isEmpty()) "Um trecho sorteado por dia. Até você adicionar os seus, valem estes."
+            else "Um trecho sorteado por dia entre os da lista.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -69,7 +74,7 @@ internal fun PrayReadSection() {
                 subtitle = if (ref == todayRef) "Hoje" else null,
                 divider = i < list.lastIndex,
             ) {
-                if (ref !in builtIn) {
+                if (ref in mine) {
                     IconButton(onClick = { scope.launch { store.removeDevotionVerse(ref) } }) {
                         Icon(Icons.Default.Close, "Remover ${bible.title(ref)}")
                     }
@@ -80,7 +85,7 @@ internal fun PrayReadSection() {
 
     if (adding) AddVerseDialog(
         bible = bible,
-        existing = list,
+        existing = mine,
         onDismiss = { adding = false },
         onAdd = { ref ->
             adding = false

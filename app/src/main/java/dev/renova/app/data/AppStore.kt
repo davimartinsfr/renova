@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.renova.app.domain.BiblePosition
+import dev.renova.app.domain.Devotion
+import dev.renova.app.domain.DevotionPick
 import dev.renova.app.domain.Reading
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.TargetType
@@ -46,6 +48,7 @@ class AppStore private constructor(context: Context) {
         val DEVOTION_DONE_DAY = stringPreferencesKey("devotion_done_day")
         val DEVOTION_ENABLED = booleanPreferencesKey("devotion_enabled")
         val DEVOTION_VERSES = stringPreferencesKey("devotion_verses")
+        val DEVOTION_PICK = stringPreferencesKey("devotion_pick")
         val UPDATE = stringPreferencesKey("update")
         val UPDATE_NOTIFIED = stringPreferencesKey("update_notified")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
@@ -106,6 +109,23 @@ class AppStore private constructor(context: Context) {
 
     suspend fun removeDevotionVerse(ref: VerseRef) = store.edit { p ->
         p[Keys.DEVOTION_VERSES] = json.encodeToString(p.devotionVerses() - ref)
+    }
+
+    /** Último trecho sorteado para orar-ler e o dia do sorteio. */
+    val devotionPick: Flow<DevotionPick?> = store.data.map { p ->
+        p[Keys.DEVOTION_PICK]?.let { json.decodeFromString<DevotionPick>(it) }
+    }
+
+    /** Trecho de orar-ler de [dayKey] entre os de [list]: sorteado e gravado na primeira vez que é pedido no dia. */
+    suspend fun devotionVerseFor(dayKey: String, list: List<VerseRef>): VerseRef? {
+        var ref: VerseRef? = null
+        store.edit { p ->
+            val saved = p[Keys.DEVOTION_PICK]?.let { json.decodeFromString<DevotionPick>(it) }
+            val pick = Devotion.pickForDay(list, saved, dayKey)
+            if (pick != null && pick != saved) p[Keys.DEVOTION_PICK] = json.encodeToString(pick)
+            ref = pick?.ref
+        }
+        return ref
     }
 
     val chaptersRead: Flow<Int> = store.data.map { it[Keys.CHAPTERS_READ] ?: 0 }

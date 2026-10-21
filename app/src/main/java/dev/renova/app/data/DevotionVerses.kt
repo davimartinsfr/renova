@@ -14,9 +14,8 @@ object DevotionVerses {
         .filter { it.isNotEmpty() && !it.startsWith("#") }
         .mapNotNull { bible.parseReference(it) }
 
-    /** Lista completa: a do app e, depois, os trechos da pessoa que ainda não estão nela. */
-    fun merge(builtIn: List<VerseRef>, mine: List<VerseRef>): List<VerseRef> =
-        builtIn + mine.filter { it !in builtIn }.distinct()
+    /** Trechos do sorteio: os da pessoa; enquanto ela não adicionar nenhum, os do app. */
+    fun pool(builtIn: List<VerseRef>, mine: List<VerseRef>): List<VerseRef> = mine.ifEmpty { builtIn }
 
     suspend fun load(context: Context, bible: Bible): List<VerseRef> = withContext(Dispatchers.IO) {
         context.assets.open(ASSET).bufferedReader(Charsets.UTF_8).use { parse(it.readLines(), bible) }

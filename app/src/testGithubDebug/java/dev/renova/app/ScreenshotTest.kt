@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
@@ -158,6 +159,8 @@ class AddVerseScreenshotTest {
                 }
             }
         }
+        // A Bíblia e a lista do app carregam em segundo plano.
+        compose.waitUntil(10_000) { compose.onAllNodes(hasText("Hoje")).fetchSemanticsNodes().isNotEmpty() }
         compose.onRoot().captureRoboImage("build/screenshots/orar-ler-lista-claro.png")
     }
 }
