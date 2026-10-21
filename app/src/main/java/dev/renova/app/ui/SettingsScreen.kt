@@ -165,7 +165,7 @@ fun SettingsScreen(onTutorial: () -> Unit = {}, onBack: () -> Unit) {
                 ListRow("Ver o tutorial", onClick = onTutorial)
                 ListRow("Créditos", subtitle = "Bíblia, fontes e ícones", onClick = { showCredits = true })
                 ListRow("Política de privacidade", onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+                    context.startFirstAvailable(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
                 })
                 ListRow("Versão", subtitle = "v${BuildConfig.VERSION_NAME}", divider = false) {
                     // Na Play Store quem atualiza é a loja.

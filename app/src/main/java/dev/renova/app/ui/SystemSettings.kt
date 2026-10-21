@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -97,7 +98,7 @@ internal fun openAccessibilitySettings(context: Context) {
     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         .putExtra(FRAGMENT_ARGS_KEY, me)
         .putExtra(SHOW_FRAGMENT_ARGS, Bundle().apply { putString(FRAGMENT_ARGS_KEY, me) })
-    context.startActivity(intent)
+    context.startFirstAvailable(intent, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 }
 
 private fun appDetails(context: Context) =
@@ -123,14 +124,22 @@ internal fun openXiaomiPermissions(context: Context) {
     val intent = Intent("miui.intent.action.APP_PERM_EDITOR")
         .setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
         .putExtra("extra_pkgname", context.packageName)
-    runCatching { context.startActivity(intent) }.onFailure { context.startActivity(appDetails(context)) }
+    context.startFirstAvailable(intent, appDetails(context))
+}
+
+/**
+ * Abre a primeira das [intents] que o aparelho tiver. Algumas telas não existem em toda fabricante (ou não há
+ * navegador para um link): sem nenhuma, avisa em vez de derrubar o app.
+ */
+internal fun Context.startFirstAvailable(vararg intents: Intent) {
+    val opened = intents.any { intent -> runCatching { startActivity(intent) }.isSuccess }
+    if (!opened) Toast.makeText(this, "Não foi possível abrir.", Toast.LENGTH_SHORT).show()
 }
 
 /** Pop-up do sistema para o Renova rodar em segundo plano sem restrições. */
 internal fun requestIgnoreBattery(context: Context) {
     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))
-    runCatching { context.startActivity(intent) }
-        .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+    context.startFirstAvailable(intent, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
 }
 
 /**
@@ -144,7 +153,7 @@ internal fun requestNotifications(context: Context, launcher: ActivityResultLaun
         !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
     if (blocked) {
         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        runCatching { context.startActivity(intent) }.onFailure { context.startActivity(appDetails(context)) }
+        context.startFirstAvailable(intent, appDetails(context))
     } else {
         prefs.edit().putBoolean("notif_asked", true).apply()
         launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
