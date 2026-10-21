@@ -424,6 +424,8 @@ class BlockerAccessibilityService : AccessibilityService() {
         private const val BROWSER_REFRESH_TICKS = 5 * 60
         private const val NOTICE_CHECK_TICKS = 5
         private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
+        // Bolhas de conversa (Messenger, Telegram) aparecem como janela do systemui e por isso escapam das
+        // regras. Talvez o nó-filho da bolha traga o pacote do app; falta conferir em aparelho antes de usar.
         private val IGNORED_PACKAGES = setOf("com.android.systemui")
 
         fun isEnabled(context: Context): Boolean {

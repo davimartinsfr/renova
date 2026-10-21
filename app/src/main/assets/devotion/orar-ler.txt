@@ -1,5 +1,6 @@
 # Versículos para a etapa "Orar-ler" dos 7 minutos com o Senhor.
-# Um trecho por linha, na ordem em que devem aparecer (um por dia, recomeçando ao fim da lista).
+# Um trecho por linha. O trecho do dia é sorteado entre os da lista (sem repetir o do dia anterior);
+# estes só valem enquanto a pessoa não adicionar trechos próprios.
 # Formatos aceitos: "Salmos 23:1-2", "Sl 23:1", "1 João 1:9", "joao 3:16" (sem acento também vale).
 # Linhas começando com # são ignoradas.
 #
