@@ -261,6 +261,19 @@ class AppStore private constructor(context: Context) {
         return until
     }
 
+    /**
+     * O relógio do aparelho saltou [deltaMs]: desloca as liberações e a janela de edição junto, numa edição só,
+     * para elas durarem o mesmo tempo real. Sem isso, atrasar a hora em 1 h esticava 1 min de liberação para 61.
+     */
+    suspend fun shiftClock(deltaMs: Long) = store.edit { p ->
+        p[Keys.UNLOCKS]?.let { raw ->
+            val saved = json.decodeFromString<Map<String, Long>>(raw)
+            p[Keys.UNLOCKS] = json.encodeToString(saved.mapValues { it.value + deltaMs })
+        }
+        p[Keys.UNLOCK_UNTIL]?.let { p[Keys.UNLOCK_UNTIL] = it + deltaMs }
+        p[Keys.EDIT_UNLOCK_UNTIL]?.let { p[Keys.EDIT_UNLOCK_UNTIL] = it + deltaMs }
+    }
+
     /** Apaga todas as liberações por leitura. Só para testes. */
     @VisibleForTesting
     internal suspend fun clearUnlocks() = store.edit { it.remove(Keys.UNLOCKS); it.remove(Keys.UNLOCK_UNTIL) }

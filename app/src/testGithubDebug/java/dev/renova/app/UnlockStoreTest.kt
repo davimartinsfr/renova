@@ -62,4 +62,14 @@ class UnlockStoreTest {
         store.setLegacyUnlock(System.currentTimeMillis() - 1)
         assertTrue(store.isUnlocked(listOf("b")))
     }
+
+    @Test fun clockMovedBackShiftsTheUnlockSoItLastsTheSameRealTime() = runBlocking {
+        store.clearEditUnlock()
+        val until = store.grantUnlock(UnlockOption.CHAPTER, listOf("a"))
+        val editUntil = store.editUnlockUntil.first()
+        val hour = 3_600_000L
+        store.shiftClock(-hour)
+        assertEquals(until - hour, store.unlocks.first()["a"])
+        assertEquals(editUntil - hour, store.editUnlockUntil.first())
+    }
 }

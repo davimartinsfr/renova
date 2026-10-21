@@ -22,6 +22,8 @@ data class AppWindow(
 
 /** Decisões do serviço de bloqueio, sem nada de Android, para dar para testar. */
 object Enforcement {
+    /** Diferença entre o relógio e o tempo real a partir da qual é a pessoa (ou a rede) mudando a hora. */
+    const val CLOCK_JUMP_MS = 5_000L
 
     /**
      * [blockedOutside]: algum alvo bloqueado está visível fora da janela ativa. [ownScreen]: a tela do
@@ -79,4 +81,14 @@ object Enforcement {
      */
     fun blocksOnlySection(rule: Rule, target: ActiveTarget): Boolean =
         rule.type.isSection || target.packageName != rule.target
+
+    /**
+     * Salto do relógio entre duas amostras: quanto [System.currentTimeMillis] andou além do tempo real
+     * ([elapsedRealtime][android.os.SystemClock.elapsedRealtime], que não muda com a hora do aparelho).
+     * Negativo quando a hora foi atrasada; zero se a diferença é pequena (atraso normal do laço).
+     */
+    fun clockJump(prevWallMs: Long, prevElapsedMs: Long, wallMs: Long, elapsedMs: Long): Long {
+        val jump = (wallMs - prevWallMs) - (elapsedMs - prevElapsedMs)
+        return if (kotlin.math.abs(jump) > CLOCK_JUMP_MS) jump else 0L
+    }
 }

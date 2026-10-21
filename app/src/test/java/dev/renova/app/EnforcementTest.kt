@@ -79,4 +79,13 @@ class EnforcementTest {
         val shorts = Rule("s", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 0)
         assertTrue(Enforcement.blocksOnlySection(shorts, ActiveTarget(youtube, isShorts = true)))
     }
+
+    @Test fun clockJumpIsTheWallClockMinusRealTime() {
+        // Um tique normal de 1 s, com folga do laço: nada.
+        assertEquals(0L, Enforcement.clockJump(prevWallMs = 0, prevElapsedMs = 0, wallMs = 1_300, elapsedMs = 1_000))
+        // Hora atrasada 1 h durante um tique.
+        assertEquals(-3_600_000L, Enforcement.clockJump(0, 0, wallMs = 1_000 - 3_600_000, elapsedMs = 1_000))
+        // Hora adiantada 1 dia.
+        assertEquals(86_400_000L, Enforcement.clockJump(0, 0, wallMs = 1_000 + 86_400_000, elapsedMs = 1_000))
+    }
 }

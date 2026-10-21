@@ -67,6 +67,9 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var lastEvalAt = 0L
     private var lastBlockAt = 0L
     private var lastExpandAt = 0L
+    /** Última amostra do relógio e do tempo real, para notar quando a hora do aparelho muda. */
+    private var lastWallMs = 0L
+    private var lastElapsedMs = 0L
     /** Alvo em PiP cujo aviso por cima a pessoa fechou: a mídia segue pausada, mas o aviso não volta. */
     private var pipNoticeDismissed: String? = null
 
@@ -124,6 +127,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private suspend fun tickLoop() {
         while (scope.isActive) {
             delay(1000)
+            followClockJumps()
             rollOverDay()
             if (++updateTicks >= UPDATE_CHECK_EVERY_TICKS) {
                 updateTicks = 0
@@ -141,6 +145,17 @@ class BlockerAccessibilityService : AccessibilityService() {
             checkBlock()
             handleBlockedOffscreen(others)
         }
+    }
+
+    /** A liberação dura tempo real: se a hora do aparelho mudou, desloca as liberações junto (ver [AppStore.shiftClock]). */
+    private suspend fun followClockJumps() {
+        val wall = System.currentTimeMillis()
+        val elapsed = SystemClock.elapsedRealtime()
+        // A primeira amostra (depois do boot ou de o serviço ligar) não tem com o que comparar.
+        val jump = if (lastElapsedMs == 0L) 0L else Enforcement.clockJump(lastWallMs, lastElapsedMs, wall, elapsed)
+        lastWallMs = wall
+        lastElapsedMs = elapsed
+        if (jump != 0L) store.shiftClock(jump)
     }
 
     private suspend fun rollOverDay() {
