@@ -2,10 +2,12 @@ package dev.renova.app.data
 
 import android.content.Context
 import androidx.annotation.VisibleForTesting
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -24,9 +26,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonArray
 import java.time.LocalDate
 
-private val Context.dataStore by preferencesDataStore("renova")
+// Arquivo ilegível vira um DataStore vazio em vez de derrubar o app a cada leitura.
+private val Context.dataStore by preferencesDataStore(
+    "renova",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /** Uso de um dia, em segundos por id de regra. */
 data class DailyUsage(val date: String, val seconds: Map<String, Long>) {
@@ -36,6 +47,10 @@ data class DailyUsage(val date: String, val seconds: Map<String, Long>) {
 class AppStore private constructor(context: Context) {
     private val store = context.applicationContext.dataStore
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** Valor salvo decodificado, ou null se está corrompido ou é de uma versão que esta não entende. */
+    private inline fun <reified T> decodeOrNull(raw: String?): T? =
+        raw?.let { runCatching { json.decodeFromString<T>(it) }.getOrNull() }
 
     private object Keys {
         val RULES = stringPreferencesKey("rules")
@@ -62,9 +77,24 @@ class AppStore private constructor(context: Context) {
 
     val rules: Flow<List<Rule>> = store.data.map { it.rules() }
 
-    /** Regras salvas, sem as de site (tipo legado). */
+    /** Regras salvas, sem as de site (tipo legado) e sem as que esta versão não entende (ver [ruleElements]). */
     private fun Preferences.rules(): List<Rule> =
-        this[Keys.RULES]?.let { json.decodeFromString<List<Rule>>(it) }.orEmpty().filter { it.type != TargetType.WEBSITE }
+        ruleElements().mapNotNull { it.second }.filter { it.type != TargetType.WEBSITE }
+
+    /**
+     * Cada regra salva, crua e decodificada; null quando esta versão não a entende (um tipo novo gravado
+     * por uma versão mais nova, antes de a pessoa voltar para esta). Uma regra ilegível não leva as outras junto.
+     */
+    private fun Preferences.ruleElements(): List<Pair<JsonElement, Rule?>> {
+        val array = this[Keys.RULES]?.let { runCatching { json.parseToJsonElement(it).jsonArray }.getOrNull() }.orEmpty()
+        return array.map { it to runCatching { json.decodeFromJsonElement<Rule>(it) }.getOrNull() }
+    }
+
+    /** Grava [rules] e mantém no fim as que esta versão não entende, para a versão mais nova reencontrá-las. */
+    private fun MutablePreferences.setRules(rules: List<Rule>) {
+        val unknown = ruleElements().filter { it.second == null }.map { it.first }
+        this[Keys.RULES] = JsonArray(rules.map { json.encodeToJsonElement(it) } + unknown).toString()
+    }
 
     /** Uso de hoje (ver [UsageHistory]). */
     val usage: Flow<DailyUsage> = store.data.map { p ->
@@ -74,9 +104,9 @@ class AppStore private constructor(context: Context) {
 
     /** Uso por data; o dia único das versões anteriores entra como o primeiro do histórico. */
     private fun Preferences.usageHistory(): Map<String, Map<String, Long>> {
-        this[Keys.USAGE_DAYS]?.let { return json.decodeFromString<Map<String, Map<String, Long>>>(it) }
+        if (this[Keys.USAGE_DAYS] != null) return decodeOrNull<Map<String, Map<String, Long>>>(this[Keys.USAGE_DAYS]).orEmpty()
         val date = this[Keys.USAGE_DATE] ?: return emptyMap()
-        return mapOf(date to (this[Keys.USAGE]?.let { json.decodeFromString<Map<String, Long>>(it) } ?: emptyMap()))
+        return mapOf(date to decodeOrNull<Map<String, Long>>(this[Keys.USAGE]).orEmpty())
     }
 
     private fun MutablePreferences.setUsageHistory(history: Map<String, Map<String, Long>>) {
@@ -92,7 +122,7 @@ class AppStore private constructor(context: Context) {
     val unlocks: Flow<Map<String, Long>> = store.data.map { it.unlocks(System.currentTimeMillis()) }
 
     private fun Preferences.unlocks(nowMs: Long): Map<String, Long> {
-        val saved = this[Keys.UNLOCKS]?.let { json.decodeFromString<Map<String, Long>>(it) }.orEmpty()
+        val saved = decodeOrNull<Map<String, Long>>(this[Keys.UNLOCKS]).orEmpty()
         val legacy = this[Keys.UNLOCK_UNTIL] ?: 0L
         if (legacy <= nowMs) return saved
         return saved + rules().associate { it.id to maxOf(legacy, saved[it.id] ?: 0L) }
@@ -129,7 +159,7 @@ class AppStore private constructor(context: Context) {
     val devotionVerses: Flow<List<VerseRef>> = store.data.map { it.devotionVerses() }
 
     private fun Preferences.devotionVerses(): List<VerseRef> =
-        this[Keys.DEVOTION_VERSES]?.let { json.decodeFromString<List<VerseRef>>(it) }.orEmpty()
+        decodeOrNull<List<VerseRef>>(this[Keys.DEVOTION_VERSES]).orEmpty()
 
     suspend fun addDevotionVerse(ref: VerseRef) = store.edit { p ->
         val list = p.devotionVerses()
@@ -142,14 +172,14 @@ class AppStore private constructor(context: Context) {
 
     /** Último trecho sorteado para orar-ler e o dia do sorteio. */
     val devotionPick: Flow<DevotionPick?> = store.data.map { p ->
-        p[Keys.DEVOTION_PICK]?.let { json.decodeFromString<DevotionPick>(it) }
+        decodeOrNull<DevotionPick>(p[Keys.DEVOTION_PICK])
     }
 
     /** Trecho de orar-ler de [dayKey] entre os de [list]: sorteado e gravado na primeira vez que é pedido no dia. */
     suspend fun devotionVerseFor(dayKey: String, list: List<VerseRef>): VerseRef? {
         var ref: VerseRef? = null
         store.edit { p ->
-            val saved = p[Keys.DEVOTION_PICK]?.let { json.decodeFromString<DevotionPick>(it) }
+            val saved = decodeOrNull<DevotionPick>(p[Keys.DEVOTION_PICK])
             val pick = Devotion.pickForDay(list, saved, dayKey)
             if (pick != null && pick != saved) p[Keys.DEVOTION_PICK] = json.encodeToString(pick)
             ref = pick?.ref
@@ -163,7 +193,7 @@ class AppStore private constructor(context: Context) {
     val editUnlockUntil: Flow<Long> = store.data.map { it[Keys.EDIT_UNLOCK_UNTIL] ?: 0L }
 
     val availableUpdate: Flow<AvailableUpdate?> = store.data.map { p ->
-        p[Keys.UPDATE]?.let { json.decodeFromString<AvailableUpdate>(it) }
+        decodeOrNull<AvailableUpdate>(p[Keys.UPDATE])
     }
 
     suspend fun setAvailableUpdate(update: AvailableUpdate?) = store.edit { p ->
@@ -196,12 +226,12 @@ class AppStore private constructor(context: Context) {
     suspend fun saveRule(rule: Rule) = store.edit { p ->
         val list = p.rules()
         val updated = if (list.any { it.id == rule.id }) list.map { if (it.id == rule.id) rule else it } else list + rule
-        p[Keys.RULES] = json.encodeToString(updated)
+        p.setRules(updated)
     }
 
     suspend fun deleteRule(id: String) = store.edit { p ->
         val list = p.rules()
-        p[Keys.RULES] = json.encodeToString(list.filterNot { it.id == id })
+        p.setRules(list.filterNot { it.id == id })
     }
 
     suspend fun saveUsage(usage: DailyUsage) = store.edit { p ->
@@ -266,13 +296,19 @@ class AppStore private constructor(context: Context) {
      * para elas durarem o mesmo tempo real. Sem isso, atrasar a hora em 1 h esticava 1 min de liberação para 61.
      */
     suspend fun shiftClock(deltaMs: Long) = store.edit { p ->
-        p[Keys.UNLOCKS]?.let { raw ->
-            val saved = json.decodeFromString<Map<String, Long>>(raw)
+        decodeOrNull<Map<String, Long>>(p[Keys.UNLOCKS])?.let { saved ->
             p[Keys.UNLOCKS] = json.encodeToString(saved.mapValues { it.value + deltaMs })
         }
         p[Keys.UNLOCK_UNTIL]?.let { p[Keys.UNLOCK_UNTIL] = it + deltaMs }
         p[Keys.EDIT_UNLOCK_UNTIL]?.let { p[Keys.EDIT_UNLOCK_UNTIL] = it + deltaMs }
     }
+
+    /** Grava [value] cru na chave de texto [key], como um arquivo corrompido ou de outra versão. Só para testes. */
+    @VisibleForTesting
+    internal suspend fun setRaw(key: String, value: String) = store.edit { it[stringPreferencesKey(key)] = value }
+
+    @VisibleForTesting
+    internal suspend fun raw(key: String): String? = store.data.first()[stringPreferencesKey(key)]
 
     /** Apaga todas as liberações por leitura. Só para testes. */
     @VisibleForTesting
