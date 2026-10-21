@@ -80,11 +80,26 @@ class ReadingActivity : ComponentActivity() {
         setContent { AppTheme { ReadingScreen(option, ruleIds, label, onClose = ::finish) } }
     }
 
+    override fun onResume() {
+        super.onResume()
+        isShowing = true
+    }
+
+    override fun onPause() {
+        isShowing = false
+        super.onPause()
+    }
+
     companion object {
         const val EXTRA_OPTION = "option"
         /** Regras que a leitura libera; vazio quando a leitura é só para editar as regras. */
         const val EXTRA_RULE_IDS = "rule_ids"
         const val EXTRA_LABEL = "label"
+
+        /** Na frente agora: o serviço não puxa outro app por cima da leitura, só pausa a mídia dele. */
+        @Volatile
+        var isShowing = false
+            private set
     }
 }
 

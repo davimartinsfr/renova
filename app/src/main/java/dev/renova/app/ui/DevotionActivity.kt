@@ -74,6 +74,23 @@ class DevotionActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent { AppTheme { DevotionScreen(onClose = ::finish) } }
     }
+
+    override fun onResume() {
+        super.onResume()
+        isShowing = true
+    }
+
+    override fun onPause() {
+        isShowing = false
+        super.onPause()
+    }
+
+    companion object {
+        /** Na frente agora: o serviço não puxa outro app por cima dos 7 minutos, só pausa a mídia dele. */
+        @Volatile
+        var isShowing = false
+            private set
+    }
 }
 
 internal data class PrayReading(val title: String, val verses: List<String>, val firstVerse: Int)

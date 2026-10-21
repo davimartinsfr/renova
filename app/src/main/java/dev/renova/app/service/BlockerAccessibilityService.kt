@@ -4,8 +4,10 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
 import dev.renova.app.data.AppStore
@@ -14,10 +16,15 @@ import dev.renova.app.data.Updater
 import dev.renova.app.domain.ActiveTarget
 import dev.renova.app.domain.BlockReason
 import dev.renova.app.domain.Devotion
+import dev.renova.app.domain.Enforcement
+import dev.renova.app.domain.OffscreenAction
+import dev.renova.app.domain.OwnScreen
 import dev.renova.app.domain.Rule
 import dev.renova.app.domain.RuleEngine
 import dev.renova.app.domain.TargetType
 import dev.renova.app.ui.BlockedActivity
+import dev.renova.app.ui.DevotionActivity
+import dev.renova.app.ui.ReadingActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -125,7 +132,7 @@ class BlockerAccessibilityService : AccessibilityService() {
             inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
             if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
             checkBlock()
-            expandBlocked(others)
+            handleBlockedOffscreen(others)
         }
     }
 
@@ -225,20 +232,38 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     /**
      * Um alvo bloqueado fora da janela ativa (em picture-in-picture, ou na outra metade da tela dividida)
-     * não é expulso pelo bloqueio normal. Trazê-lo para a frente deixa o bloqueio agir.
+     * não é expulso pelo bloqueio normal. Em geral ele é trazido para a frente, para o bloqueio agir; com a
+     * leitura ou os 7 minutos na frente, só a mídia é pausada, para não tirar a pessoa do que vai liberá-lo.
      */
-    private fun expandBlocked(others: List<ActiveTarget>) {
-        // Com o Renova na frente, puxar o app tiraria a pessoa da leitura que vai liberá-lo.
-        if (ownAppInFront) return
+    private fun handleBlockedOffscreen(others: List<ActiveTarget>) {
         val nowMs = System.currentTimeMillis()
         if (nowMs - lastExpandAt < EXPAND_COOLDOWN_MS) return
-        for (target in others) {
-            if (blocking(target).isEmpty()) continue
-            val launch = packageManager.getLaunchIntentForPackage(target.packageName) ?: continue
-            lastExpandAt = nowMs
-            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            return
+        val target = others.firstOrNull { blocking(it).isNotEmpty() }
+        val ownScreen = when {
+            !ownAppInFront -> null
+            ReadingActivity.isShowing || DevotionActivity.isShowing -> OwnScreen.READING
+            else -> OwnScreen.OTHER
         }
+        when (Enforcement.offscreenAction(target != null, ownScreen)) {
+            OffscreenAction.NONE -> return
+            OffscreenAction.PAUSE -> pauseMedia()
+            OffscreenAction.PULL -> {
+                val launch = packageManager.getLaunchIntentForPackage(target!!.packageName)
+                // Sem tela de abertura não há como puxar o app: pelo menos para o vídeo.
+                if (launch == null) pauseMedia() else startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        }
+        lastExpandAt = nowMs
+    }
+
+    /**
+     * Pausa o que está tocando. A tecla vai para a sessão de mídia ativa do sistema, que quase sempre é a do
+     * app bloqueado, mas pode ser outro player (uma música de fundo): é o preço de parar o vídeo sem puxá-lo.
+     */
+    private fun pauseMedia() {
+        val audio = getSystemService(AudioManager::class.java)
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE))
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE))
     }
 
     companion object {
