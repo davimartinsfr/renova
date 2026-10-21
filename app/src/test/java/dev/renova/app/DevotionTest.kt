@@ -135,3 +135,17 @@ class DevotionReturnTextTest {
         assertEquals("amanhã", devotionReturnsWhen(23))
     }
 }
+
+class DevotionDoneTest {
+    private val doneDay = "2026-10-21"
+
+    @Test fun doneTodayOrLaterCounts() {
+        assertTrue(Devotion.isDone(doneDay, LocalDateTime.of(2026, 10, 21, 9, 0)))
+        // Fuso mudado para oeste: agora é 20/10 de noite, mas os 7 minutos já foram feitos no 21.
+        assertTrue(Devotion.isDone(doneDay, LocalDateTime.of(2026, 10, 20, 22, 0)))
+        // Dia seguinte, depois das 4h: precisa fazer de novo.
+        assertFalse(Devotion.isDone(doneDay, LocalDateTime.of(2026, 10, 22, 4, 0)))
+        assertFalse(Devotion.isDone(null, LocalDateTime.of(2026, 10, 21, 9, 0)))
+        assertFalse(Devotion.isDone("lixo", LocalDateTime.of(2026, 10, 21, 9, 0)))
+    }
+}
