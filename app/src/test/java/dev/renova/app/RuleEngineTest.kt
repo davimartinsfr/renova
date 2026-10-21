@@ -52,6 +52,14 @@ class RuleEngineTest {
         assertNull(RuleEngine.blockReason(rule.copy(enabled = false), 600, at(1, 12), unlocked = false))
     }
 
+    @Test fun changingTypeOrAppGivesTheRuleANewId() {
+        val shorts = Rule("old", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 10)
+        assertEquals("old", RuleEngine.idFor(shorts, TargetType.YT_SHORTS, "", "new"))
+        assertEquals("new", RuleEngine.idFor(shorts, TargetType.IG_REELS, "", "new"))
+        assertEquals("new", RuleEngine.idFor(reddit, TargetType.APP, "com.netflix.mediaclient", "new"))
+        assertEquals("new", RuleEngine.idFor(null, TargetType.APP, "com.netflix.mediaclient", "new"))
+    }
+
     @Test fun zeroLimitIsAlwaysBlocked() {
         val rule = reddit.copy(dailyLimitMin = 0, schedules = listOf(Schedule(startMin = 22 * 60, endMin = 7 * 60)))
         assertEquals(BlockReason.ALWAYS, RuleEngine.blockReason(rule, 0, at(2, 12), unlocked = false))

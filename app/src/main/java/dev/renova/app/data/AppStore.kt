@@ -223,8 +223,9 @@ class AppStore private constructor(context: Context) {
         this[Keys.BIBLE_ROUNDS] ?: 0,
     )
 
-    suspend fun saveRule(rule: Rule) = store.edit { p ->
-        val list = p.rules()
+    /** Grava [rule]; com [replacing], ela toma o lugar dessa outra regra (alvo trocado ganha id novo). */
+    suspend fun saveRule(rule: Rule, replacing: String? = null) = store.edit { p ->
+        val list = p.rules().filterNot { replacing != null && replacing != rule.id && it.id == replacing }
         val updated = if (list.any { it.id == rule.id }) list.map { if (it.id == rule.id) rule else it } else list + rule
         p.setRules(updated)
     }

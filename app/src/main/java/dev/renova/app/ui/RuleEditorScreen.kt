@@ -110,6 +110,8 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     var limitMin by rememberSaveable { mutableIntStateOf(15) }
     val schedules = rememberSaveable(saver = SchedulesSaver) { mutableStateListOf<Schedule>() }
     var enabled by rememberSaveable { mutableStateOf(true) }
+    val newId = rememberSaveable { UUID.randomUUID().toString() }
+    var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var needReading by remember { mutableStateOf(false) }
     var pickingApp by remember { mutableStateOf(false) }
@@ -141,7 +143,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
         }
         if (error != null) return null
         return Rule(
-            id = original?.id ?: UUID.randomUUID().toString(),
+            id = RuleEngine.idFor(original, type, normalizedTarget, newId),
             type = type,
             target = normalizedTarget,
             label = when (type) {
@@ -156,13 +158,19 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
     }
 
     /** Afrouxar exige o desbloqueio por leitura; apertar é sempre permitido. */
-    fun commit(new: Rule?) = scope.launch {
-        if (RuleEngine.isLoosening(original, new) && !store.isUnlockedForEdits()) {
-            needReading = true
-            return@launch
+    fun commit(new: Rule?) {
+        // Toques repetidos enquanto grava não salvam de novo.
+        if (saving) return
+        saving = true
+        scope.launch {
+            if (RuleEngine.isLoosening(original, new) && !store.isUnlockedForEdits()) {
+                needReading = true
+                saving = false
+                return@launch
+            }
+            if (new == null) original?.let { store.deleteRule(it.id) } else store.saveRule(new, replacing = original?.id)
+            onDone()
         }
-        if (new == null) original?.let { store.deleteRule(it.id) } else store.saveRule(new)
-        onDone()
     }
 
     Scaffold(

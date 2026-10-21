@@ -99,6 +99,14 @@ object RuleEngine {
     }
 
     /**
+     * Id da regra salva no editor. Trocar o tipo ou o app faz outra regra: com o id antigo, ela herdaria
+     * o uso de hoje e a liberação do alvo anterior. [newId] é sorteado uma vez por tela, para dois toques
+     * em Salvar numa regra nova não criarem duas.
+     */
+    fun idFor(original: Rule?, type: TargetType, target: String, newId: String): String =
+        if (original != null && original.type == type && original.target == target) original.id else newId
+
+    /**
      * Uma mudança "afrouxa" o bloqueio quando algum minuto da semana deixa de ser bloqueado,
      * o limite diário aumenta/some, a regra é desativada/apagada ou o alvo muda.
      * Afrouxar exige leitura; apertar é livre.
