@@ -104,7 +104,7 @@ class BlockedActivity : ComponentActivity() {
 
     private fun leave() {
         val type = TargetType.entries.firstOrNull { it.name == intent.getStringExtra(EXTRA_TYPE) }
-        if (type?.isSection != true) {
+        if (!intent.getBooleanExtra(EXTRA_SECTION, type?.isSection == true)) {
             startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
         finish()
@@ -114,6 +114,8 @@ class BlockedActivity : ComponentActivity() {
         const val EXTRA_LABEL = "label"
         const val EXTRA_REASON = "reason"
         const val EXTRA_TYPE = "type"
+        /** O bloqueio é só de uma parte (Shorts, Reels, o site de um app): Voltar só fecha, sem ir à tela inicial. */
+        const val EXTRA_SECTION = "section"
         /** App bloqueado, para voltar a ele depois da leitura. */
         const val EXTRA_PACKAGE = "package"
         /** Regras que bloqueiam o app: ler libera todas elas. */

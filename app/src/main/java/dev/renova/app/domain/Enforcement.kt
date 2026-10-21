@@ -70,4 +70,13 @@ object Enforcement {
      * agora mostraria o aviso para quem já saiu dela pelo Voltar.
      */
     fun blockScreenOpened(lastResumedAt: Long, requestedAt: Long): Boolean = lastResumedAt >= requestedAt
+
+    /**
+     * Se o bloqueio de [rule] em [target] tira a pessoa só de uma parte do app (Voltar global e a tela de
+     * bloqueio só fecha), em vez do app inteiro. Vale para o Shorts e o Reels, e para a regra de app que casou
+     * pelo site oficial aberto num navegador: mandar para a tela inicial deixaria a aba no site, e o navegador
+     * inteiro ficaria bloqueado.
+     */
+    fun blocksOnlySection(rule: Rule, target: ActiveTarget): Boolean =
+        rule.type.isSection || target.packageName != rule.target
 }

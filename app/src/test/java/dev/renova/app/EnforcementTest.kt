@@ -5,6 +5,8 @@ import dev.renova.app.domain.AppWindow
 import dev.renova.app.domain.Enforcement
 import dev.renova.app.domain.OffscreenAction
 import dev.renova.app.domain.OwnScreen
+import dev.renova.app.domain.Rule
+import dev.renova.app.domain.TargetType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -68,5 +70,13 @@ class EnforcementTest {
         // A última vez que abriu foi num bloqueio anterior: o sistema barrou este.
         assertFalse(Enforcement.blockScreenOpened(lastResumedAt = 500, requestedAt = 1_000))
         assertFalse(Enforcement.blockScreenOpened(lastResumedAt = 0, requestedAt = 1_000))
+    }
+
+    @Test fun appRuleMatchedByItsSiteBlocksOnlyTheSite() {
+        val app = Rule("y", TargetType.APP, youtube, "YouTube", dailyLimitMin = 0)
+        assertFalse(Enforcement.blocksOnlySection(app, ActiveTarget(youtube)))
+        assertTrue(Enforcement.blocksOnlySection(app, ActiveTarget("com.android.chrome", url = "m.youtube.com")))
+        val shorts = Rule("s", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 0)
+        assertTrue(Enforcement.blocksOnlySection(shorts, ActiveTarget(youtube, isShorts = true)))
     }
 }

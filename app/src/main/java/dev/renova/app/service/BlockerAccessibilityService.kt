@@ -183,25 +183,27 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
         active = null
-        val blockedScreen = blockedScreenIntent(target.packageName, rule, reason, ruleIds)
-        if (rule.type.isSection) {
-            // No Shorts/Reels basta voltar (o resto do app continua liberado); espera o app sair da seção.
+        val section = Enforcement.blocksOnlySection(rule, target)
+        val blockedScreen = blockedScreenIntent(target.packageName, rule, reason, ruleIds, section)
+        if (section) {
+            // No Shorts/Reels (ou no site de um app, no navegador) basta voltar: o resto continua liberado.
+            // Espera o app sair da seção.
             performGlobalAction(GLOBAL_ACTION_BACK)
             scope.launch {
                 delay(SECTION_BACK_DELAY_MS)
                 val requestedAt = SystemClock.elapsedRealtime()
                 startActivity(blockedScreen)
-                ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt)
+                ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt, section)
             }
         } else {
             val requestedAt = SystemClock.elapsedRealtime()
             startActivity(blockedScreen)
-            scope.launch { ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt) }
+            scope.launch { ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt, section) }
         }
         scope.launch { flushUsage() }
     }
 
-    private fun blockedScreenIntent(pkg: String, rule: Rule, reason: String, ruleIds: List<String>): Intent =
+    private fun blockedScreenIntent(pkg: String, rule: Rule, reason: String, ruleIds: List<String>, section: Boolean): Intent =
         // NO_USER_ACTION evita que o app de baixo receba o "usuário saiu", que é o gatilho do
         // picture-in-picture automático (YouTube e afins continuariam tocando numa janelinha).
         // Sair da tela de bloqueio já leva à tela inicial, então não é preciso apertar Home aqui.
@@ -211,6 +213,7 @@ class BlockerAccessibilityService : AccessibilityService() {
             .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
             .putExtra(BlockedActivity.EXTRA_REASON, reason)
             .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
+            .putExtra(BlockedActivity.EXTRA_SECTION, section)
             .putExtra(BlockedActivity.EXTRA_RULE_IDS, ruleIds.toTypedArray())
 
     /**
@@ -218,12 +221,19 @@ class BlockerAccessibilityService : AccessibilityService() {
      * sem erro nenhum: o Shorts fechava, mas a tela de bloqueio não aparecia. Se ela não abriu, o serviço
      * desenha o bloqueio ele mesmo por cima do app.
      */
-    private suspend fun ensureShown(pkg: String, rule: Rule, reason: String, blockedScreen: Intent, requestedAt: Long) {
+    private suspend fun ensureShown(
+        pkg: String,
+        rule: Rule,
+        reason: String,
+        blockedScreen: Intent,
+        requestedAt: Long,
+        section: Boolean,
+    ) {
         delay(SHOW_CHECK_MS)
         if (Enforcement.blockScreenOpened(BlockedActivity.lastResumedAt, requestedAt)) return
         if (overlay.isShowing || frontAppPackage() != pkg) return
         showOverlay(pkg, rule, reason, blockedScreen, followsFront = true) {
-            if (!rule.type.isSection) performGlobalAction(GLOBAL_ACTION_HOME)
+            if (!section) performGlobalAction(GLOBAL_ACTION_HOME)
         }
     }
 
@@ -316,7 +326,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         val blocking = blocking(target)
         val (rule, reason) = blocking.firstOrNull() ?: return
         if (overlay.isShowing || pipNoticeDismissed == pkg) return pauseMedia()
-        val blockedScreen = blockedScreenIntent(pkg, rule, reason.name, blocking.map { it.first.id })
+        val blockedScreen = blockedScreenIntent(pkg, rule, reason.name, blocking.map { it.first.id }, Enforcement.blocksOnlySection(rule, target))
         showOverlay(pkg, rule, reason.name, blockedScreen, followsFront = false) { pipNoticeDismissed = pkg }
     }
 
