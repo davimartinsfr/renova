@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.media.AudioManager
 import android.os.PowerManager
 import android.provider.Settings
@@ -14,6 +15,7 @@ import dev.renova.app.data.AppStore
 import dev.renova.app.data.DailyUsage
 import dev.renova.app.data.Updater
 import dev.renova.app.domain.ActiveTarget
+import dev.renova.app.domain.AppWindow
 import dev.renova.app.domain.BlockReason
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.Enforcement
@@ -64,6 +66,8 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var lastEvalAt = 0L
     private var lastBlockAt = 0L
     private var lastExpandAt = 0L
+    /** Alvo em PiP cujo aviso por cima a pessoa fechou: a mídia segue pausada, mas o aviso não volta. */
+    private var pipNoticeDismissed: String? = null
 
     override fun onServiceConnected() {
         store = AppStore.get(this)
@@ -176,15 +180,7 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (now - lastBlockAt < BLOCK_COOLDOWN_MS) return
         lastBlockAt = now
         active = null
-        // NO_USER_ACTION evita que o app de baixo receba o "usuário saiu", que é o gatilho do
-        // picture-in-picture automático (YouTube e afins continuariam tocando numa janelinha).
-        // Sair da tela de bloqueio já leva à tela inicial, então não é preciso apertar Home aqui.
-        val blockedScreen = Intent(this, BlockedActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
-            .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
-            .putExtra(BlockedActivity.EXTRA_REASON, reason)
-            .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
-            .putExtra(BlockedActivity.EXTRA_RULE_IDS, ruleIds.toTypedArray())
+        val blockedScreen = blockedScreenIntent(rule, reason, ruleIds)
         if (rule.type.isSection) {
             // No Shorts/Reels basta voltar (o resto do app continua liberado); espera o app sair da seção.
             performGlobalAction(GLOBAL_ACTION_BACK)
@@ -199,6 +195,17 @@ class BlockerAccessibilityService : AccessibilityService() {
         }
         scope.launch { flushUsage() }
     }
+
+    private fun blockedScreenIntent(rule: Rule, reason: String, ruleIds: List<String>): Intent =
+        // NO_USER_ACTION evita que o app de baixo receba o "usuário saiu", que é o gatilho do
+        // picture-in-picture automático (YouTube e afins continuariam tocando numa janelinha).
+        // Sair da tela de bloqueio já leva à tela inicial, então não é preciso apertar Home aqui.
+        Intent(this, BlockedActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            .putExtra(BlockedActivity.EXTRA_LABEL, rule.label)
+            .putExtra(BlockedActivity.EXTRA_REASON, reason)
+            .putExtra(BlockedActivity.EXTRA_TYPE, rule.type.name)
+            .putExtra(BlockedActivity.EXTRA_RULE_IDS, ruleIds.toTypedArray())
 
     /**
      * Alguns sistemas (Xiaomi sem a permissão de janelas pop-up em segundo plano) ignoram o startActivity
@@ -220,17 +227,30 @@ class BlockerAccessibilityService : AccessibilityService() {
         )
     }
 
-    /** Fecha o aviso quando a tela de bloqueio de verdade abriu ou a pessoa saiu do app bloqueado. */
+    /** Fecha o aviso quando a tela de bloqueio de verdade abriu ou o app bloqueado saiu (ver [Enforcement.keepOverlay]). */
     private fun syncOverlay() {
+        val windows = appWindows()
+        val visible = windows.mapNotNull { it.packageName }
+        if (pipNoticeDismissed != null && pipNoticeDismissed !in visible) pipNoticeDismissed = null
         if (!overlay.isShowing) return
-        val front = frontAppPackage()
-        if (BlockedActivity.isShowing || (front != null && front != overlay.blockedPackage)) overlay.hide()
+        val keep = Enforcement.keepOverlay(
+            overlay.blockedPackage, overlay.followsFront, BlockedActivity.isShowing, Enforcement.frontApp(windows), visible,
+        )
+        if (!keep) overlay.hide()
     }
 
-    /** App na janela mais de cima (a lista de janelas vem de cima para baixo); ignora o próprio aviso. */
-    private fun frontAppPackage(): String? = windows
-        .firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
-        ?.root?.packageName?.toString()
+    /** Janelas de aplicativo na tela, inclusive as em PiP; o próprio aviso por cima não entra. */
+    private fun appWindows(): List<AppWindow> = windows
+        .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isInPictureInPictureMode }
+        .map { w ->
+            val bounds = Rect().also(w::getBoundsInScreen)
+            AppWindow(
+                w.root?.packageName?.toString(), w.isInPictureInPictureMode, w.isActive, w.isFocused,
+                bounds.width().toLong() * bounds.height(),
+            )
+        }
+
+    private fun frontAppPackage(): String? = Enforcement.frontApp(appWindows())
 
     /**
      * Um alvo bloqueado fora da janela ativa (em picture-in-picture, ou na outra metade da tela dividida)
@@ -252,10 +272,43 @@ class BlockerAccessibilityService : AccessibilityService() {
             OffscreenAction.PULL -> {
                 val launch = packageManager.getLaunchIntentForPackage(target!!.packageName)
                 // Sem tela de abertura não há como puxar o app: pelo menos para o vídeo.
-                if (launch == null) pauseMedia() else startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                if (launch == null) {
+                    pauseMedia()
+                } else {
+                    startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    scope.launch { ensurePulled(target) }
+                }
             }
         }
         lastExpandAt = nowMs
+    }
+
+    /**
+     * O Xiaomi sem a permissão de janelas pop-up também ignora este startActivity, e o vídeo em PiP tocaria
+     * sem fim. Se o app não veio para a frente, o serviço pausa a mídia e mostra o aviso por cima, que fica
+     * enquanto o PiP estiver na tela.
+     */
+    private suspend fun ensurePulled(target: ActiveTarget) {
+        delay(SHOW_CHECK_MS)
+        val pkg = target.packageName
+        val windows = appWindows()
+        if (BlockedActivity.isShowing || Enforcement.frontApp(windows) == pkg || windows.none { it.packageName == pkg }) return
+        val blocking = blocking(target)
+        val (rule, reason) = blocking.firstOrNull() ?: return
+        pauseMedia()
+        if (overlay.isShowing || pipNoticeDismissed == pkg) return
+        val blockedScreen = blockedScreenIntent(rule, reason.name, blocking.map { it.first.id })
+        overlay.show(
+            blockedPackage = pkg,
+            label = rule.label,
+            reason = reason.name,
+            followsFront = false,
+            onOpenApp = { startActivity(blockedScreen) },
+            onLeave = {
+                overlay.hide()
+                pipNoticeDismissed = pkg
+            },
+        )
     }
 
     /**

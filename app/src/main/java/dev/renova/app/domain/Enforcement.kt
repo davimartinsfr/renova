@@ -11,6 +11,15 @@ enum class OwnScreen {
 /** O que fazer com um alvo bloqueado que continua visível fora da janela ativa (PiP ou tela dividida). */
 enum class OffscreenAction { PULL, PAUSE, NONE }
 
+/** Uma janela de aplicativo na tela (ou em picture-in-picture), como o serviço de acessibilidade a vê. */
+data class AppWindow(
+    val packageName: String?,
+    val isPip: Boolean,
+    val isActive: Boolean,
+    val isFocused: Boolean,
+    val area: Long,
+)
+
 /** Decisões do serviço de bloqueio, sem nada de Android, para dar para testar. */
 object Enforcement {
 
@@ -23,5 +32,31 @@ object Enforcement {
         !blockedOutside -> OffscreenAction.NONE
         ownScreen == OwnScreen.READING -> OffscreenAction.PAUSE
         else -> OffscreenAction.PULL
+    }
+
+    /**
+     * App da frente: a janela de aplicativo ativa ou focada que não está em picture-in-picture. Sem nenhuma
+     * ativa (o aviso por cima tem o foco, por exemplo), a maior janela de aplicativo. Um PiP nunca é a frente.
+     */
+    fun frontApp(windows: List<AppWindow>): String? {
+        val candidates = windows.filter { !it.isPip && it.packageName != null }
+        return (candidates.firstOrNull { it.isActive || it.isFocused } ?: candidates.maxByOrNull { it.area })?.packageName
+    }
+
+    /**
+     * Se o aviso por cima de [blockedPackage] continua aberto. O aviso do app da frente ([followsFront]) fecha
+     * quando outro app vem para a frente; o de um app em PiP que o sistema não deixou puxar fica enquanto ele
+     * estiver visível. Os dois fecham quando a tela de bloqueio de verdade abre.
+     */
+    fun keepOverlay(
+        blockedPackage: String?,
+        followsFront: Boolean,
+        blockScreenShowing: Boolean,
+        front: String?,
+        visible: Collection<String>,
+    ): Boolean = when {
+        blockScreenShowing || blockedPackage == null -> false
+        followsFront -> front == null || front == blockedPackage
+        else -> blockedPackage in visible
     }
 }

@@ -31,12 +31,24 @@ internal class BlockOverlay(private val service: AccessibilityService) {
     var blockedPackage: String? = null
         private set
 
+    /** O aviso é do app da frente (fecha quando outro vem para a frente), e não de um app em PiP. */
+    var followsFront = true
+        private set
+
     val isShowing get() = view != null
 
     /** [onLeave] também vale para o Voltar do sistema. */
-    fun show(blockedPackage: String, label: String, reason: String, onOpenApp: () -> Unit, onLeave: () -> Unit) {
+    fun show(
+        blockedPackage: String,
+        label: String,
+        reason: String,
+        onOpenApp: () -> Unit,
+        onLeave: () -> Unit,
+        followsFront: Boolean = true,
+    ) {
         hide()
         this.blockedPackage = blockedPackage
+        this.followsFront = followsFront
         val owner = Owner().also { this.owner = it }
         val compose = ComposeView(service).apply {
             setContent { AppTheme { BlockedScreen(label, reason, null, onLeave, {}, {}, onOpenApp) } }
