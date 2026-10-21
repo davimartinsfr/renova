@@ -25,4 +25,15 @@ class TargetDetectorTest {
         assertFalse(TargetDetector.looksLikeUrl("3.14"))
         assertFalse(TargetDetector.looksLikeUrl(""))
     }
+
+    @Test fun urlBarScanOnlyUntilTheIdShowsUpAndAtMostEveryFiveSeconds() {
+        // Barra já vista pelo id: sumir é ela escondida na rolagem, não busca.
+        assertFalse(TargetDetector.shouldScanForUrlBar(idSeenBefore = true, lastScanAt = null, now = 60_000))
+        assertFalse(TargetDetector.shouldScanForUrlBar(idSeenBefore = true, lastScanAt = 0, now = 60_000))
+        // Id nunca visto (mudou, ou navegador fora da lista): busca, com o limite de tempo.
+        assertTrue(TargetDetector.shouldScanForUrlBar(idSeenBefore = false, lastScanAt = null, now = 60_000))
+        assertFalse(TargetDetector.shouldScanForUrlBar(idSeenBefore = false, lastScanAt = 58_000, now = 60_000))
+        assertFalse(TargetDetector.shouldScanForUrlBar(idSeenBefore = false, lastScanAt = 55_001, now = 60_000))
+        assertTrue(TargetDetector.shouldScanForUrlBar(idSeenBefore = false, lastScanAt = 55_000, now = 60_000))
+    }
 }

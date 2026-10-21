@@ -62,17 +62,23 @@ object TargetDetector {
     /** Limite de nós visitados na busca de reserva: a árvore inteira de uma página pesaria a cada evento. */
     private const val MAX_SCANNED_NODES = 300
 
+    /** Intervalo mínimo entre duas buscas de reserva no mesmo navegador. */
+    const val URL_SCAN_INTERVAL_MS = 5_000L
+
     /** Se [pkg] é um navegador: está na lista ou entre os [browsers] instalados. */
     fun isBrowser(pkg: String, browsers: Set<String>): Boolean = pkg in URL_BAR_IDS || pkg in browsers
 
-    /** [browsers]: navegadores instalados (abrem links https), para buscar a barra nos que não estão na lista. */
-    fun detect(root: AccessibilityNodeInfo, browsers: Set<String> = emptySet()): ActiveTarget? {
+    /**
+     * [browsers]: navegadores instalados (abrem links https), para buscar a barra nos que não estão na lista.
+     * [urlBars] guarda, entre as leituras, o que já se sabe da barra de cada navegador; [now] é o
+     * [elapsedRealtime][android.os.SystemClock.elapsedRealtime].
+     */
+    fun detect(root: AccessibilityNodeInfo, browsers: Set<String>, urlBars: UrlBarMemory, now: Long): ActiveTarget? {
         val pkg = root.packageName?.toString() ?: return null
         return when {
             pkg == YOUTUBE -> ActiveTarget(pkg, isShorts = isShorts(root))
             pkg == INSTAGRAM -> ActiveTarget(pkg, isReels = isReels(root))
-            pkg in URL_BAR_IDS -> ActiveTarget(pkg, url = readUrl(root, pkg))
-            pkg in browsers -> ActiveTarget(pkg, url = findUrlField(root))
+            pkg in URL_BAR_IDS || pkg in browsers -> ActiveTarget(pkg, url = readUrl(root, pkg, urlBars, now))
             else -> ActiveTarget(pkg)
         }
     }
@@ -89,14 +95,14 @@ object TargetDetector {
      * ([isUrlFieldId]) e cujo texto pareça um endereço ([looksLikeUrl]). Busca em largura, de cima para baixo,
      * que é onde a barra costuma ficar.
      */
-    private fun findUrlField(root: AccessibilityNodeInfo): String? {
+    private fun findUrlField(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val queue = ArrayDeque(listOf(root))
         var visited = 0
         while (queue.isNotEmpty() && visited++ < MAX_SCANNED_NODES) {
             val node = queue.removeFirst()
             val text = node.text?.toString()
             val isText = node.className?.let { it.endsWith("EditText") || it.endsWith("TextView") } == true
-            if (isText && text != null && isUrlFieldId(node.viewIdResourceName) && looksLikeUrl(text)) return text
+            if (isText && text != null && isUrlFieldId(node.viewIdResourceName) && looksLikeUrl(text)) return node
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
         return null
@@ -117,11 +123,42 @@ object TargetDetector {
         return '.' in host && tld.length >= 2 && tld.all { it.isLetter() }
     }
 
-    private fun readUrl(root: AccessibilityNodeInfo, pkg: String): String? {
-        val id = "$pkg:id/${URL_BAR_IDS.getValue(pkg)}"
-        val nodes = root.findAccessibilityNodeInfosByViewId(id)
+    /**
+     * Lê a barra pelo id da lista ou pelo que a busca de reserva já achou, que é barato. Sem ela, a busca de
+     * reserva roda só se [shouldScanForUrlBar] deixar: a barra some a cada rolagem, e buscar a cada evento
+     * gastava CPU à toa (aí vale a última URL lida, ver [Enforcement.withLastUrl][dev.renova.app.domain.Enforcement.withLastUrl]).
+     */
+    private fun readUrl(root: AccessibilityNodeInfo, pkg: String, urlBars: UrlBarMemory, now: Long): String? {
+        val ids = listOfNotNull(URL_BAR_IDS[pkg]?.let { "$pkg:id/$it" }, urlBars.learnedIds[pkg]).distinct()
+        for (id in ids) {
+            val nodes = root.findAccessibilityNodeInfosByViewId(id)
+            if (nodes.isEmpty()) continue
+            urlBars.seen += pkg
+            return nodes.firstNotNullOfOrNull { it.text?.toString()?.takeIf(String::isNotBlank) }
+        }
         // O id não bateu (o app mudou, ou o id ainda não foi conferido): procura a barra pelo jeito dela.
-        if (nodes.isEmpty()) return findUrlField(root)
-        return nodes.firstNotNullOfOrNull { it.text?.toString()?.takeIf(String::isNotBlank) }
+        if (!shouldScanForUrlBar(pkg in urlBars.seen, urlBars.lastScanAt[pkg], now)) return null
+        urlBars.lastScanAt[pkg] = now
+        val field = findUrlField(root) ?: return null
+        field.viewIdResourceName?.let { urlBars.learnedIds[pkg] = it }
+        return field.text?.toString()
     }
+
+    /**
+     * Se vale a busca de reserva da barra. Depois que a barra apareceu pelo id ([idSeenBefore]), sumir é só
+     * ela escondida na rolagem, e a busca não acharia nada. Antes disso (id que mudou numa versão nova, ou
+     * navegador fora da lista), busca no máximo a cada [URL_SCAN_INTERVAL_MS]; [lastScanAt] null = nunca buscou.
+     */
+    internal fun shouldScanForUrlBar(idSeenBefore: Boolean, lastScanAt: Long?, now: Long): Boolean =
+        !idSeenBefore && (lastScanAt == null || now - lastScanAt >= URL_SCAN_INTERVAL_MS)
+}
+
+/** O que o serviço já sabe da barra de endereço de cada navegador, nesta sessão (ver [TargetDetector.detect]). */
+class UrlBarMemory {
+    /** Navegadores em que a barra já foi achada pelo id. */
+    val seen = mutableSetOf<String>()
+    /** Id da barra que a busca de reserva achou, por navegador. */
+    val learnedIds = mutableMapOf<String, String>()
+    /** Quando cada navegador foi buscado pela última vez. */
+    val lastScanAt = mutableMapOf<String, Long>()
 }

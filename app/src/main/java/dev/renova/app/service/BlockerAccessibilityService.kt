@@ -61,6 +61,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var unlocks: Map<String, Long> = emptyMap()
     /** Navegadores instalados, para achar a barra de endereço nos que o TargetDetector não conhece. */
     private var browsers: Set<String> = emptySet()
+    private val urlBars = UrlBarMemory()
     private var browserTicks = 0
     private var noticeTicks = 0
     /** Última URL do navegador da frente, para quando a barra some (ver [Enforcement.withLastUrl]). */
@@ -123,7 +124,7 @@ class BlockerAccessibilityService : AccessibilityService() {
     private fun evaluate(): Boolean {
         syncOverlay()
         val root = rootInActiveWindow ?: return false
-        val detected = TargetDetector.detect(root, browsers) ?: return false
+        val detected = TargetDetector.detect(root, browsers, urlBars, SystemClock.elapsedRealtime()) ?: return false
         val (target, last) = Enforcement.withLastUrl(
             detected, TargetDetector.isBrowser(detected.packageName, browsers), lastUrl, keepFor = IGNORED_PACKAGES + packageName,
         )
@@ -142,7 +143,7 @@ class BlockerAccessibilityService : AccessibilityService() {
      */
     private fun otherVisibleTargets(): List<ActiveTarget> = windows
         .filter { (it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isInPictureInPictureMode) && !it.isActive }
-        .mapNotNull { window -> window.root?.let { TargetDetector.detect(it, browsers) } }
+        .mapNotNull { window -> window.root?.let { TargetDetector.detect(it, browsers, urlBars, SystemClock.elapsedRealtime()) } }
         .filter(::isCounted)
 
     /** Tira a contagem regressiva das regras que voltaram a bloquear antes do fim ou foram apagadas. */
