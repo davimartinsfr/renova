@@ -1,5 +1,6 @@
 package dev.renova.app
 
+import dev.renova.app.domain.ActiveTarget
 import dev.renova.app.domain.AppWindow
 import dev.renova.app.domain.Enforcement
 import dev.renova.app.domain.OffscreenAction
@@ -53,5 +54,11 @@ class EnforcementTest {
     @Test fun pipOverlayStaysWhileThePipIsOnScreen() {
         assertTrue(Enforcement.keepOverlay(youtube, followsFront = false, blockScreenShowing = false, front = launcher, visible = listOf(youtube, launcher)))
         assertFalse(Enforcement.keepOverlay(youtube, followsFront = false, blockScreenShowing = false, front = launcher, visible = listOf(launcher)))
+    }
+
+    @Test fun appUnderTheOverlayDoesNotCountTime() {
+        val targets = listOf(ActiveTarget(youtube), ActiveTarget("com.netflix.mediaclient"))
+        assertEquals(listOf(ActiveTarget("com.netflix.mediaclient")), Enforcement.counted(targets, overlayPackage = youtube))
+        assertEquals(targets, Enforcement.counted(targets, overlayPackage = null))
     }
 }

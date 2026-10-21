@@ -131,10 +131,12 @@ class BlockerAccessibilityService : AccessibilityService() {
             if (!power.isInteractive) continue
             evaluate()
             val others = otherVisibleTargets()
-            val inUse = RuleEngine.inUse(rules, others + listOfNotNull(active))
-            if (inUse.isEmpty()) continue
-            inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
-            if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
+            val onScreen = Enforcement.counted(others + listOfNotNull(active), overlay.blockedPackage.takeIf { overlay.isShowing })
+            val inUse = RuleEngine.inUse(rules, onScreen)
+            if (inUse.isNotEmpty()) {
+                inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
+                if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
+            }
             checkBlock()
             handleBlockedOffscreen(others)
         }
@@ -216,14 +218,24 @@ class BlockerAccessibilityService : AccessibilityService() {
     private suspend fun ensureShown(pkg: String, rule: Rule, reason: String, blockedScreen: Intent) {
         delay(SHOW_CHECK_MS)
         if (BlockedActivity.isShowing || overlay.isShowing || frontAppPackage() != pkg) return
+        showOverlay(pkg, rule, reason, blockedScreen, followsFront = true) {
+            if (!rule.type.isSection) performGlobalAction(GLOBAL_ACTION_HOME)
+        }
+    }
+
+    /** O aviso cobre o app, mas não o para: a mídia é pausada aqui, e o tempo dele deixa de contar no tickLoop. */
+    private fun showOverlay(pkg: String, rule: Rule, reason: String, blockedScreen: Intent, followsFront: Boolean, onLeave: () -> Unit) {
+        pauseMedia()
+        active = null
         overlay.show(
             blockedPackage = pkg,
             label = rule.label,
             reason = reason,
+            followsFront = followsFront,
             onOpenApp = { startActivity(blockedScreen) },
             onLeave = {
                 overlay.hide()
-                if (!rule.type.isSection) performGlobalAction(GLOBAL_ACTION_HOME)
+                onLeave()
             },
         )
     }
@@ -296,20 +308,9 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (BlockedActivity.isShowing || Enforcement.frontApp(windows) == pkg || windows.none { it.packageName == pkg }) return
         val blocking = blocking(target)
         val (rule, reason) = blocking.firstOrNull() ?: return
-        pauseMedia()
-        if (overlay.isShowing || pipNoticeDismissed == pkg) return
+        if (overlay.isShowing || pipNoticeDismissed == pkg) return pauseMedia()
         val blockedScreen = blockedScreenIntent(pkg, rule, reason.name, blocking.map { it.first.id })
-        overlay.show(
-            blockedPackage = pkg,
-            label = rule.label,
-            reason = reason.name,
-            followsFront = false,
-            onOpenApp = { startActivity(blockedScreen) },
-            onLeave = {
-                overlay.hide()
-                pipNoticeDismissed = pkg
-            },
-        )
+        showOverlay(pkg, rule, reason.name, blockedScreen, followsFront = false) { pipNoticeDismissed = pkg }
     }
 
     /**

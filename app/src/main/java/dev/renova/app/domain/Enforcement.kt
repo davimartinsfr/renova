@@ -59,4 +59,8 @@ object Enforcement {
         followsFront -> front == null || front == blockedPackage
         else -> blockedPackage in visible
     }
+
+    /** Alvos que contam tempo: com o aviso por cima de [overlayPackage], o app embaixo dele não está sendo usado. */
+    fun counted(targets: List<ActiveTarget>, overlayPackage: String?): List<ActiveTarget> =
+        targets.filterNot { it.packageName == overlayPackage }
 }
