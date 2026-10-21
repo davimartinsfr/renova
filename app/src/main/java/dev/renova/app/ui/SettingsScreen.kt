@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.renova.app.BuildConfig
 import dev.renova.app.data.AppStore
+import dev.renova.app.data.AvailableUpdate
 import dev.renova.app.data.Bible
 import dev.renova.app.data.ThemeMode
 import dev.renova.app.data.ThemePrefs
@@ -172,13 +173,9 @@ fun SettingsScreen(onTutorial: () -> Unit = {}, onBack: () -> Unit) {
                         TextButton(enabled = !checking, onClick = {
                             scope.launch {
                                 checking = true
-                                Updater.check(context)
+                                val reached = Updater.check(context)
                                 val update = store.availableUpdate.first()
-                                Toast.makeText(
-                                    context,
-                                    if (update != null) "Nova versão: v${update.version}. Atualize pela tela inicial." else "Você já tem a versão mais recente.",
-                                    Toast.LENGTH_LONG,
-                                ).show()
+                                Toast.makeText(context, updateCheckMessage(reached, update), Toast.LENGTH_LONG).show()
                                 checking = false
                             }
                         }) { Text(if (checking) "Verificando…" else "Verificar", style = MaterialTheme.typography.labelLarge) }
@@ -288,4 +285,11 @@ private fun ChapterPickerDialog(onDismiss: () -> Unit, onPick: (book: Int, chapt
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
+}
+
+/** Resultado do "Verificar": sem conseguir consultar, não dá para dizer que esta é a mais recente. */
+internal fun updateCheckMessage(reached: Boolean, update: AvailableUpdate?): String = when {
+    !reached -> "Não foi possível verificar. Confira a internet."
+    update != null -> "Nova versão: v${update.version}. Atualize pela tela inicial."
+    else -> "Você já tem a versão mais recente."
 }

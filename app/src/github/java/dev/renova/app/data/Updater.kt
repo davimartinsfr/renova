@@ -40,21 +40,24 @@ object Updater {
         if (AppStore.get(context).claimUpdateCheck(intervalMs)) check(context)
     }
 
-    /** Consulta o GitHub; guarda (ou limpa) a atualização disponível e avisa por notificação se for nova. */
-    suspend fun check(context: Context) = withContext(Dispatchers.IO) {
+    /**
+     * Consulta o GitHub; guarda (ou limpa) a atualização disponível e avisa por notificação se for nova.
+     * Devolve se conseguiu consultar: sem internet, "não há versão nova" seria mentira.
+     */
+    suspend fun check(context: Context): Boolean = withContext(Dispatchers.IO) {
         val release = runCatching {
             val conn = URL(LATEST_RELEASE).openConnection() as HttpURLConnection
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             conn.connectTimeout = 15_000
             conn.readTimeout = 15_000
             conn.inputStream.use { json.decodeFromString<Release>(it.bufferedReader().readText()) }
-        }.getOrNull() ?: return@withContext
+        }.getOrNull() ?: return@withContext false
         val store = AppStore.get(context)
         val version = release.tag_name.removePrefix("v")
         val apk = release.assets.firstOrNull { it.name.endsWith(".apk") }
         if (apk == null || !isNewer(version, BuildConfig.VERSION_NAME)) {
             store.setAvailableUpdate(null)
-            return@withContext
+            return@withContext true
         }
         val update = AvailableUpdate(version, apk.browser_download_url, release.body.orEmpty())
         if (store.notifiedUpdateVersion() != version) {
@@ -62,6 +65,7 @@ object Updater {
             store.setNotifiedUpdateVersion(version)
         }
         store.setAvailableUpdate(update)
+        true
     }
 
     fun isNewer(candidate: String, current: String): Boolean {
