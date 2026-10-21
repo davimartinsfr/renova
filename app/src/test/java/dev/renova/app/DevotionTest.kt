@@ -5,6 +5,7 @@ import dev.renova.app.data.DevotionVerses
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.DevotionPick
 import dev.renova.app.domain.VerseRef
+import dev.renova.app.ui.devotionReturnsWhen
 import dev.renova.app.ui.stepToneLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -124,5 +125,13 @@ class DevotionVersesTest {
 
     @Test fun poolFallsBackToBuiltIn() {
         assertEquals(listOf(a, b), DevotionVerses.pool(listOf(a, b), emptyList()))
+    }
+}
+
+class DevotionReturnTextTest {
+    @Test fun doneBeforeFourReturnsToday() {
+        assertEquals("hoje", devotionReturnsWhen(2))
+        assertEquals("amanhã", devotionReturnsWhen(4))
+        assertEquals("amanhã", devotionReturnsWhen(23))
     }
 }

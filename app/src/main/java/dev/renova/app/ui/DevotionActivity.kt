@@ -237,7 +237,7 @@ private fun Finished(onClose: () -> Unit) {
             Text("Feito hoje", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(12.dp))
             Text(
-                "O bloqueio dos 7 minutos volta amanhã às ${Devotion.DAY_STARTS_AT_HOUR}h.",
+                "O bloqueio dos 7 minutos volta ${devotionReturnsWhen(LocalDateTime.now().hour)} às ${Devotion.DAY_STARTS_AT_HOUR}h.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -253,6 +253,9 @@ private fun Finished(onClose: () -> Unit) {
         PrimaryButton("Fechar", onClick = onClose, modifier = Modifier.fillMaxWidth())
     }
 }
+
+/** Feitos de madrugada (antes das 4h), os 7 minutos contam para o dia que começou ontem: o bloqueio volta hoje. */
+internal fun devotionReturnsWhen(hour: Int): String = if (hour < Devotion.DAY_STARTS_AT_HOUR) "hoje" else "amanhã"
 
 private val FALLBACK_VERSE = VerseRef(book = 48, chapter = 6, fromVerse = 17, toVerse = 18) // Efésios 6:17-18
 
