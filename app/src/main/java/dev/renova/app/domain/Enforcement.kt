@@ -127,4 +127,12 @@ object Enforcement {
      * é o de antes e pode já ter saído: não conta agora. Ele não é zerado, para não piscar nas transições.
      */
     fun frontToCount(active: ActiveTarget?, frontRead: Boolean): ActiveTarget? = active.takeIf { frontRead }
+
+    /**
+     * Põe na frente a regra que conduz o bloqueio: a do app inteiro antes da de seção. Com o Shorts e o app
+     * YouTube bloqueados, a seção vinha primeiro: a tela "YouTube Shorts" fechava no Voltar e logo vinha
+     * outra, "YouTube". O caso do site no navegador fica com [blocksOnlySection].
+     */
+    fun leadingFirst(blocking: List<Pair<Rule, BlockReason>>): List<Pair<Rule, BlockReason>> =
+        blocking.sortedBy { it.first.type.isSection }
 }

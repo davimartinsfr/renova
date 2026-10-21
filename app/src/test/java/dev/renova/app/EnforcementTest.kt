@@ -2,6 +2,7 @@ package dev.renova.app
 
 import dev.renova.app.domain.ActiveTarget
 import dev.renova.app.domain.AppWindow
+import dev.renova.app.domain.BlockReason
 import dev.renova.app.domain.Enforcement
 import dev.renova.app.domain.LastUrl
 import dev.renova.app.domain.OffscreenAction
@@ -124,5 +125,12 @@ class EnforcementTest {
         val yt = ActiveTarget(youtube)
         assertEquals(yt, Enforcement.frontToCount(yt, frontRead = true))
         assertNull(Enforcement.frontToCount(yt, frontRead = false))
+    }
+
+    @Test fun wholeAppRuleLeadsOverSection() {
+        val shorts = Rule("s", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 0)
+        val app = Rule("y", TargetType.APP, youtube, "YouTube", dailyLimitMin = 0)
+        val led = Enforcement.leadingFirst(listOf(shorts to BlockReason.ALWAYS, app to BlockReason.LIMIT))
+        assertEquals(listOf("y", "s"), led.map { it.first.id })
     }
 }

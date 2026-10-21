@@ -219,12 +219,14 @@ class BlockerAccessibilityService : AccessibilityService() {
         block(target, rule, reason.name, blocking.map { it.first.id })
     }
 
-    /** Regras que bloqueiam [target] agora (ver [RuleEngine.blocking]). */
+    /** Regras que bloqueiam [target] agora (ver [RuleEngine.blocking]), a que conduz o bloqueio primeiro. */
     private fun blocking(target: ActiveTarget): List<Pair<Rule, BlockReason>> {
         val now = LocalDateTime.now()
-        return RuleEngine.blocking(
-            rules, target, usage, now, System.currentTimeMillis(), unlocks,
-            devotionPending = devotionEnabled && !Devotion.isDone(devotionDoneDay, now),
+        return Enforcement.leadingFirst(
+            RuleEngine.blocking(
+                rules, target, usage, now, System.currentTimeMillis(), unlocks,
+                devotionPending = devotionEnabled && !Devotion.isDone(devotionDoneDay, now),
+            ),
         )
     }
 
