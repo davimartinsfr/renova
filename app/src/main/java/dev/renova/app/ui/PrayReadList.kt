@@ -35,7 +35,6 @@ import dev.renova.app.data.DevotionVerses
 import dev.renova.app.domain.Devotion
 import dev.renova.app.domain.VerseRef
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
 
 /**
  * Trechos de orar-ler da aba dos 7 minutos, de onde sai o sorteio do dia. Mostra os que a pessoa
@@ -52,9 +51,10 @@ internal fun PrayReadSection() {
         value = bible to DevotionVerses.load(context, bible)
     }
     var adding by remember { mutableStateOf(false) }
+    val clock by rememberMinuteClock()
     val (bible, builtIn) = loaded ?: return
     val list = DevotionVerses.pool(builtIn, mine)
-    val dayKey = Devotion.dayKey(LocalDateTime.now())
+    val dayKey = Devotion.dayKey(clock)
     val pick by store.devotionPick.collectAsState(initial = null)
     LaunchedEffect(list, dayKey) { store.devotionVerseFor(dayKey, list) }
     val todayRef = pick?.takeIf { it.day == dayKey }?.ref

@@ -103,6 +103,7 @@ fun HomeScreen(
     val batteryOk = permissions.batteryOk
     val notifOk = permissions.notifOk
 
+    val clock by rememberMinuteClock()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -230,7 +231,7 @@ fun HomeScreen(
                     }
                 }
                 HomeTab.DEVOTION -> devotion?.let { (devotionEnabled, devotionDoneDay) ->
-                    val devotionDone = Devotion.isDone(devotionDoneDay, LocalDateTime.now())
+                    val devotionDone = Devotion.isDone(devotionDoneDay, clock)
                     val hasTargets = rules.any { it.enabled }
                     item {
                         DevotionTile(

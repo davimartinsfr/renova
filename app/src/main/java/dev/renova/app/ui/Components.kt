@@ -31,6 +31,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -320,5 +324,17 @@ fun WheelPicker(
                 )
             }
         }
+    }
+}
+
+/**
+ * Hora atual, renovada a cada minuto: o que depende do dia dos 7 minutos (que vira às 4h) se atualiza com
+ * a tela aberta, sem esperar outra mudança recompor.
+ */
+@Composable
+internal fun rememberMinuteClock(): State<LocalDateTime> = produceState(LocalDateTime.now()) {
+    while (true) {
+        delay(60_000)
+        value = LocalDateTime.now()
     }
 }
