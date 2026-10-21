@@ -62,8 +62,12 @@ object Enforcement {
         else -> blockedPackage in visible
     }
 
-    /** Alvos que contam tempo: com o aviso por cima de [overlayPackage], o app embaixo dele não está sendo usado. */
-    fun counted(targets: List<ActiveTarget>, overlayPackage: String?): List<ActiveTarget> =
+    /**
+     * Alvos que o aviso por cima de [overlayPackage] não cobre. O app embaixo do aviso não está sendo usado
+     * (não conta tempo) e já está parado por ele: puxá-lo e pausar a mídia de novo a cada volta só pausaria
+     * outro player, como uma música de fundo.
+     */
+    fun uncovered(targets: List<ActiveTarget>, overlayPackage: String?): List<ActiveTarget> =
         targets.filterNot { it.packageName == overlayPackage }
 
     /**

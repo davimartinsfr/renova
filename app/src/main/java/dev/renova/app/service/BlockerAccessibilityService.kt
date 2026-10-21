@@ -154,9 +154,9 @@ class BlockerAccessibilityService : AccessibilityService() {
             }
             if (!power.isInteractive) continue
             evaluate()
-            val others = otherVisibleTargets()
-            val onScreen = Enforcement.counted(others + listOfNotNull(active), overlay.blockedPackage.takeIf { overlay.isShowing })
-            val inUse = RuleEngine.inUse(rules, onScreen)
+            val covered = overlay.blockedPackage.takeIf { overlay.isShowing }
+            val others = Enforcement.uncovered(otherVisibleTargets(), covered)
+            val inUse = RuleEngine.inUse(rules, Enforcement.uncovered(others + listOfNotNull(active), covered))
             if (inUse.isNotEmpty()) {
                 inUse.forEach { usage[it.id] = (usage[it.id] ?: 0L) + 1 }
                 if (++dirtyTicks >= FLUSH_EVERY_TICKS) flushUsage()
@@ -359,7 +359,9 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (Enforcement.frontApp(windows) == pkg || windows.none { it.packageName == pkg }) return
         val blocking = blocking(target)
         val (rule, reason) = blocking.firstOrNull() ?: return
-        if (overlay.isShowing || pipNoticeDismissed == pkg) return pauseMedia()
+        // O aviso já pausou ao abrir. Dispensado, só a pausa repetida segura o vídeo no PiP.
+        if (overlay.isShowing) return
+        if (pipNoticeDismissed == pkg) return pauseMedia()
         val blockedScreen = blockedScreenIntent(pkg, rule, reason.name, blocking.map { it.first.id }, Enforcement.blocksOnlySection(rule, target))
         showOverlay(pkg, rule, reason.name, blockedScreen, followsFront = false) { pipNoticeDismissed = pkg }
     }

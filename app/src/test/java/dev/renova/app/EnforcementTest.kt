@@ -58,10 +58,10 @@ class EnforcementTest {
         assertFalse(Enforcement.keepOverlay(youtube, followsFront = false, blockScreenShowing = false, front = launcher, visible = listOf(launcher)))
     }
 
-    @Test fun appUnderTheOverlayDoesNotCountTime() {
+    @Test fun appUnderTheOverlayIsNeitherCountedNorPulled() {
         val targets = listOf(ActiveTarget(youtube), ActiveTarget("com.netflix.mediaclient"))
-        assertEquals(listOf(ActiveTarget("com.netflix.mediaclient")), Enforcement.counted(targets, overlayPackage = youtube))
-        assertEquals(targets, Enforcement.counted(targets, overlayPackage = null))
+        assertEquals(listOf(ActiveTarget("com.netflix.mediaclient")), Enforcement.uncovered(targets, overlayPackage = youtube))
+        assertEquals(targets, Enforcement.uncovered(targets, overlayPackage = null))
     }
 
     @Test fun overlayOnlyWhenTheBlockScreenNeverOpened() {
