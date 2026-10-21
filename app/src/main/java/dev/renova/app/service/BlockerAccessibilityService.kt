@@ -251,7 +251,8 @@ class BlockerAccessibilityService : AccessibilityService() {
             startActivity(blockedScreen)
             scope.launch { ensureShown(target.packageName, rule, reason, blockedScreen, requestedAt, section) }
         }
-        scope.launch { flushUsage() }
+        // Antes da carga inicial, o mapa ainda está vazio e apagaria o uso do dia gravado.
+        if (usageLoaded) scope.launch { flushUsage() }
     }
 
     private fun blockedScreenIntent(pkg: String, rule: Rule, reason: String, ruleIds: List<String>, section: Boolean): Intent =
