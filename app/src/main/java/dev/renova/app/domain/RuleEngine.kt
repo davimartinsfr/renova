@@ -25,8 +25,10 @@ object RuleEngine {
         unlocked: Boolean,
     ): BlockReason? {
         if (!rule.enabled || unlocked) return null
-        if (rule.schedules.any { it.isActive(now) }) return BlockReason.SCHEDULE
         val limit = rule.dailyLimitMin
+        // Limite 0 bloqueia sempre, com ou sem horário: a tela diz isso em vez de "limite atingido".
+        if (limit == 0) return BlockReason.ALWAYS
+        if (rule.schedules.any { it.isActive(now) }) return BlockReason.SCHEDULE
         if (limit != null && usedSecondsToday >= limit * 60L) return BlockReason.LIMIT
         return null
     }

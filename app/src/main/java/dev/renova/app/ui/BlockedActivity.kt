@@ -167,6 +167,7 @@ internal fun BlockedScreen(
                 Text(
                     when (reason) {
                         BlockReason.LIMIT.name -> "Limite de hoje atingido."
+                        BlockReason.ALWAYS.name -> "Sempre bloqueado."
                         BlockReason.DEVOTION.name -> "Faça antes os 7 minutos de hoje."
                         else -> "Horário de bloqueio."
                     },

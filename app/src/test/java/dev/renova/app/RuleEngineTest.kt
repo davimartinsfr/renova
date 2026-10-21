@@ -52,6 +52,13 @@ class RuleEngineTest {
         assertNull(RuleEngine.blockReason(rule.copy(enabled = false), 600, at(1, 12), unlocked = false))
     }
 
+    @Test fun zeroLimitIsAlwaysBlocked() {
+        val rule = reddit.copy(dailyLimitMin = 0, schedules = listOf(Schedule(startMin = 22 * 60, endMin = 7 * 60)))
+        assertEquals(BlockReason.ALWAYS, RuleEngine.blockReason(rule, 0, at(2, 12), unlocked = false))
+        assertEquals(BlockReason.ALWAYS, RuleEngine.blockReason(rule, 0, at(2, 23), unlocked = false))
+        assertNull(RuleEngine.blockReason(rule, 0, at(2, 12), unlocked = true))
+    }
+
     @Test fun scheduleWinsOverRemainingLimit() {
         val rule = reddit.copy(dailyLimitMin = 30, schedules = listOf(Schedule(startMin = 22 * 60, endMin = 7 * 60)))
         assertEquals(BlockReason.SCHEDULE, RuleEngine.blockReason(rule, 0, at(2, 23), unlocked = false))
@@ -165,7 +172,7 @@ class UsageAndUnlockTest {
     @Test fun appWithTwoRulesNeedsBothUnlocked() {
         // Shorts casa com a regra do Shorts e com a do app YouTube.
         val used = mapOf("yt" to 30 * 60L)
-        assertEquals(listOf("yt" to BlockReason.LIMIT, "sh" to BlockReason.LIMIT), blocking(youtubeShorts, used))
+        assertEquals(listOf("yt" to BlockReason.LIMIT, "sh" to BlockReason.ALWAYS), blocking(youtubeShorts, used))
         assertEquals(listOf("yt" to BlockReason.LIMIT), blocking(youtubeShorts, used, mapOf("sh" to nowMs + 1)))
         assertTrue(blocking(youtubeShorts, used, mapOf("sh" to nowMs + 1, "yt" to nowMs + 1)).isEmpty())
         // Vídeo normal do YouTube não é Shorts: só a regra do app.

@@ -43,4 +43,5 @@ data class ActiveTarget(
     val url: String? = null,
 )
 
-enum class BlockReason { SCHEDULE, LIMIT, DEVOTION }
+/** ALWAYS: limite diário 0, a regra bloqueia o dia todo. */
+enum class BlockReason { SCHEDULE, LIMIT, ALWAYS, DEVOTION }
