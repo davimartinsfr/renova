@@ -39,4 +39,12 @@ class RuleEditorRestoreTest {
         compose.onNodeWithText("Só o Reels", substring = true).assertExists()
         compose.onNodeWithText("até").assertExists()
     }
+
+    @Test fun offStepLimitOpensExact() {
+        runBlocking { store.saveRule(Rule("tres", TargetType.YT_SHORTS, label = "YouTube Shorts", dailyLimitMin = 3)) }
+        compose.setContent { AppTheme { RuleEditorScreen("tres") {} } }
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Editar regra")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("03").assertExists()
+        compose.onNodeWithText("Sempre bloqueado.").assertDoesNotExist()
+    }
 }

@@ -125,8 +125,9 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
             target = r.target
             label = r.label
             limitOn = r.dailyLimitMin != null
-            // O seletor anda de 5 em 5: arredonda para baixo, para nunca afrouxar sem querer.
-            limitMin = (r.dailyLimitMin ?: 15).coerceAtMost(LIMIT_MAX_MIN) / 5 * 5
+            // Valor exato, mesmo fora dos passos de 5 (o seletor ganha um item para ele); acima do máximo,
+            // limita para baixo, para nunca afrouxar sem querer.
+            limitMin = (r.dailyLimitMin ?: 15).coerceAtMost(LIMIT_MAX_MIN)
             schedules.addAll(r.schedules)
             enabled = r.enabled
         }
@@ -226,7 +227,7 @@ fun RuleEditorScreen(ruleId: String?, onDone: () -> Unit) {
 
             Section("Limite diário", checked = limitOn, onCheckedChange = { limitOn = it })
             if (limitOn) {
-                LimitPicker(limitMin, onChange = { limitMin = it })
+                LimitPicker(limitMin, savedMinutes = original?.dailyLimitMin?.rem(60), onChange = { limitMin = it })
                 if (limitMin == 0) Hint("Sempre bloqueado.")
             }
 
@@ -303,9 +304,16 @@ private fun ScheduleCard(s: Schedule, onChange: (Schedule) -> Unit, onDelete: ()
 
 private const val LIMIT_MAX_MIN = 23 * 60 + 55
 
+/**
+ * Minutos da roda: de 5 em 5, mais os minutos da regra salva ([savedMinutes]) se ficarem fora dos passos.
+ * Sem isso, uma regra de 3 min abria como 0 (sempre bloqueado) e outra de 17 min, como 15.
+ */
+internal fun limitMinuteOptions(savedMinutes: Int?): List<Int> =
+    ((0..55 step 5) + listOfNotNull(savedMinutes)).distinct().sorted()
+
 /** Limite diário em duas rodas lado a lado: horas de 1 em 1 e minutos de 5 em 5. */
 @Composable
-private fun LimitPicker(totalMin: Int, onChange: (Int) -> Unit) {
+private fun LimitPicker(totalMin: Int, savedMinutes: Int?, onChange: (Int) -> Unit) {
     val hours = totalMin / 60
     val minutes = totalMin % 60
     Box(
@@ -321,7 +329,7 @@ private fun LimitPicker(totalMin: Int, onChange: (Int) -> Unit) {
             WheelPicker((0..23).toList(), hours, onSelected = { onChange(it * 60 + minutes) })
             Text("h", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(24.dp))
-            WheelPicker((0..55 step 5).toList(), minutes, onSelected = { onChange(hours * 60 + it) }, format = { "%02d".format(it) })
+            WheelPicker(limitMinuteOptions(savedMinutes), minutes, onSelected = { onChange(hours * 60 + it) }, format = { "%02d".format(it) })
             Text("min", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
